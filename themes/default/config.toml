@@ -1,0 +1,30 @@
+# BoothSoft theme manifest. Assets are relative to this theme directory.
+# Do not put secrets, tokens, or absolute filesystem paths here.
+schema_version = 1
+name = "Party"
+
+[colors]
+background = "#24173E"
+foreground = "#FFF6EC"
+primary = "#FFC857"
+accent = "#F0477D"
+surface = "#33245A"
+muted = "#BBAED6"
+
+[assets]
+logo = "assets/logo.png"
+frame = "assets/frame.png"
+frame_portrait = "assets/frame-portrait.png"
+background = "assets/background.png"
+
+[ui]
+shutter_label = "Prendre la photo"
+retake_label = "Reprendre"
+finish_label = "Terminer"
+print_label = "Imprimer"
+start_label = "On y va !"
+welcome_eyebrow = "Photobooth"
+welcome_title = "Que la fête\ncommence !"
+welcome_subtitle = "Grimaces, câlins, pas de danse : tout est permis."
+thanks_title = "Trop bien !"
+thanks_subtitle = "Votre photo arrive. Allez vite danser !"

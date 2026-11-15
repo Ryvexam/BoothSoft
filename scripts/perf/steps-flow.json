@@ -1,0 +1,11 @@
+[{"name":"welcome idle (5 s)","dwell":5,"shot":true},
+ {"name":"tap start -> live view","click":[205,551],"dwell":3,"shot":true},
+ {"name":"live view idle (5 s)","dwell":5},
+ {"name":"tap filter Sépia","click":[1090,688],"dwell":2},
+ {"name":"tap shutter, countdown t+2.5 s","click":[640,688],"dwell":2.5,"shot":true},
+ {"name":"countdown to capture","dwell":5.5},
+ {"name":"review (first 5 s)","dwell":5,"shot":true},
+ {"name":"review idle (10 s)","dwell":10},
+ {"name":"tap Terminer -> thanks","click":[1018,387],"dwell":2,"shot":true},
+ {"name":"thanks -> welcome (6 s)","dwell":6,"shot":true},
+ {"name":"welcome idle again (5 s)","dwell":5}]

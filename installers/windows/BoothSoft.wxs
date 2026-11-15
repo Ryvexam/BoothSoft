@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- WiX Toolset v5; build with: wix build ... -d Payload=<absolute dist path> -arch x64 -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <Package
+    Name="BoothSoft"
+    Manufacturer="BoothSoft Contributors"
+    Version="0.16.0"
+    UpgradeCode="7EE55920-91DA-48B2-8788-B45FF06A6376"
+    Scope="perMachine">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of BoothSoft is already installed." />
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="BoothSoft">
+        <Directory Id="THEMESFOLDER" Name="themes" />
+        <Component Id="MainApplication" Directory="INSTALLFOLDER" Guid="*">
+          <File Id="BoothSoftExe" Source="$(var.Payload)\boothsoft.exe" KeyPath="yes">
+            <Shortcut Id="BoothSoftShortcut" Name="BoothSoft" Directory="ProgramMenuFolder" Advertise="yes" />
+          </File>
+          <File Id="BoothSoftReadme" Source="$(var.Payload)\README.md" />
+          <File Id="BoothSoftLicense" Source="$(var.Payload)\LICENSE" />
+        </Component>
+      </Directory>
+    </StandardDirectory>
+    <Feature Id="MainFeature" Title="BoothSoft" Level="1">
+      <ComponentRef Id="MainApplication" />
+      <!-- Harvest directories recursively: names remain available to the runtime theme discovery. -->
+      <Files Directory="THEMESFOLDER" Include="$(var.Payload)\themes\**" />
+    </Feature>
+  </Package>
+</Wix>

@@ -1,0 +1,53 @@
+[package]
+name = "boothsoft"
+default-run = "boothsoft"
+version = "0.17.0"
+edition = "2021"
+description = "Cross-platform, offline-first native photobooth engine"
+license = "CPAL-1.0"
+
+[dependencies]
+eframe = { version = "0.32", default-features = false, features = ["glow", "default_fonts", "x11", "wayland"] }
+egui = "0.32"
+image = { version = "0.25", default-features = false, features = ["jpeg", "png"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", default-features = false, features = ["clock", "serde"] }
+dirs = "6"
+bcrypt = "0.17"
+toml = "0.8"
+# On-demand theme ZIP import and native file chooser; not used on camera frames.
+zip = { version = "2.4", default-features = false, features = ["deflate"] }
+rfd = { version = "0.15", default-features = false, features = ["xdg-portal", "tokio"] }
+fast_image_resize = { version = "5", default-features = false }
+ab_glyph = "0.2"
+mozjpeg = "0.10"
+cpal = "0.15"
+
+# `input-native` selects Media Foundation / AVFoundation / V4L2 at compile time.
+[target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]
+nokhwa = { version = "0.10.11", default-features = false, features = ["input-native", "decoding"] }
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = ["Win32_Graphics_Gdi", "Win32_Graphics_Printing", "Win32_Storage_Xps", "Win32_Foundation", "Win32_System_Registry"] }
+
+[profile.release]
+# Prefer runtime throughput over a few megabytes of executable size.
+# See ADR-0003 and the optional release-small profile below.
+opt-level = 3
+# Fat LTO: measured −4 % executable size, same CPU as thin (ADR-0003).
+lto = "fat"
+codegen-units = 1
+strip = true
+# Not "abort": libjpeg-turbo reports a corrupt MJPEG frame by unwinding; with
+# abort, one truncated USB frame would kill the kiosk mid-event (see src/mjpeg.rs).
+panic = "unwind"
+
+[profile.release-small]
+inherits = "release"
+opt-level = "z"
+
+# glibc keeps freed multi-MB image buffers in its heap (dynamic mmap threshold).
+# A fixed threshold returns every photo buffer to the OS once released.
+[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
+libc = "0.2"

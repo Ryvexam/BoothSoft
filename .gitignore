@@ -1,0 +1,24 @@
+# Build
+/target/
+**/*.rs.bk
+
+# Proprietary or private material: never commit
+/vendor/
+/private/
+/themes/*/
+!/themes/default/
+*.plist.local
+
+# Local data, logs, test output
+/BoothSoft/
+*.log
+/scratch/
+/tmp/
+
+# OS and editors
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+__pycache__/

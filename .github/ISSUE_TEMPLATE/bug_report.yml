@@ -1,0 +1,60 @@
+name: Bug report
+description: Report a reproducible BoothSoft defect.
+title: "bug: "
+labels: ["bug", "needs-triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please use GitHub private vulnerability reporting for security issues.
+        Never upload guest photos, credentials, private logs or identifying event data.
+  - type: input
+    id: version
+    attributes:
+      label: BoothSoft version
+      description: Version, commit, or ZIP release identifier.
+      placeholder: "0.16.0 / commit SHA"
+    validations:
+      required: true
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Operating system
+      options: ["Windows", "macOS", "Linux", "Other"]
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: OS version, Rust version, graphics backend and relevant hardware/driver.
+      placeholder: "Windows 11, USB webcam, DNP driver ..."
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Numbered steps starting from a clean run.
+      placeholder: "1. Run cargo run --release -- --demo --windowed\n2. ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Sanitized logs or screenshots (optional)
+      description: Redact all private data and file paths before sharing.
+    validations:
+      required: false

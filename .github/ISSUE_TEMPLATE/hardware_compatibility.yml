@@ -1,0 +1,46 @@
+name: Hardware compatibility report
+description: Share a camera or printer test with reproducible evidence.
+title: "hardware: "
+labels: ["hardware", "needs-triage"]
+body:
+  - type: dropdown
+    id: category
+    attributes:
+      label: Device type
+      options: ["Webcam", "DSLR / camera", "Printer", "Other"]
+    validations:
+      required: true
+  - type: input
+    id: device
+    attributes:
+      label: Exact device and firmware/model
+      placeholder: "Manufacturer, model, firmware"
+    validations:
+      required: true
+  - type: input
+    id: platform
+    attributes:
+      label: OS version and driver
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Tests performed
+      description: Include enumeration, preview, capture, printing, media/size and physical output checks when applicable.
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Outcome
+      options: ["Fully verified on device", "Partially working", "Not working", "Not tested"]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Notes / sanitized diagnostics
+      description: A spooler job ID alone does not prove physical print completion.
+    validations:
+      required: false

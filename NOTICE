@@ -1,0 +1,51 @@
+BoothSoft
+Copyright (c) 2026 Dôm'Booth and the BoothSoft contributors
+
+BoothSoft is licensed under the Common Public Attribution License Version 1.0
+(CPAL-1.0, OSI-approved); see LICENSE, including the completed Exhibits A and B.
+
+BoothSoft was created by Dôm'Booth (https://dombooth.com).
+
+Attribution (CPAL-1.0 section 14 and Exhibit B). Every copy, modified version or
+larger work that includes BoothSoft must, each time it is launched or a session
+starts, display prominently on its user interface:
+
+    BoothSoft, créé par Dôm'Booth — https://dombooth.com
+
+and keep this NOTICE file and the LICENSE file with its Exhibits.
+
+------------------------------------------------------------------------------
+Bundled fonts
+------------------------------------------------------------------------------
+
+The following fonts are embedded in the executable or used to generate the
+bundled artwork. They are licensed under the SIL Open Font License, Version 1.1.
+
+  Fraunces        Copyright The Fraunces Project Authors
+                  assets/fonts/OFL-Fraunces.txt
+  DM Sans         Copyright The DM Sans Project Authors
+                  assets/fonts/OFL-DMSans.txt
+  Poppins         Copyright The Poppins Project Authors
+                  scripts/theme-art/fonts/OFL-Poppins.txt
+                  (artwork generation only)
+
+------------------------------------------------------------------------------
+Third-party software
+------------------------------------------------------------------------------
+
+BoothSoft is built with open-source Rust crates, each under its own license
+(mostly MIT or Apache-2.0), including: eframe and egui, image, nokhwa, mozjpeg
+(libjpeg-turbo / mozjpeg, IJG and BSD-style licenses), fast_image_resize, cpal,
+ab_glyph, serde, toml, zip, rfd, chrono, bcrypt, dirs and windows-sys.
+
+The complete list with versions is in Cargo.lock. Run `cargo tree` to inspect
+it, and a tool such as `cargo about` or `cargo deny` to produce a full license
+report for a binary distribution.
+
+------------------------------------------------------------------------------
+Not included
+------------------------------------------------------------------------------
+
+Camera manufacturer SDKs (for example the Canon EOS Digital SDK) are
+proprietary, are not part of this repository and are not redistributed with
+BoothSoft. See docs/EXTENSIONS.md.

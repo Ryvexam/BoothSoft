@@ -1,0 +1,79 @@
+name: Rust cross-platform build and Windows MSI
+
+on:
+  push:
+    branches: [dev, 'feat/**', 'fix/**', 'refactor/**', 'security/**', 'ci/**']
+  pull_request:
+    branches: [dev, main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            artifact: boothsoft-windows
+            binary: target/release/boothsoft.exe
+          - os: macos-latest
+            artifact: boothsoft-macos
+            binary: target/release/boothsoft
+          - os: ubuntu-24.04
+            artifact: boothsoft-linux
+            binary: target/release/boothsoft
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - name: Install Linux dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libgtk-3-dev libudev-dev libv4l-dev libclang-dev clang libxcb-render0-dev libxcb-shape0-dev libxcb-xfixes0-dev libxkbcommon-dev libgl1-mesa-dev libasound2-dev libssl-dev
+      - name: Format
+        run: cargo fmt --all --check
+      - name: Check all targets
+        run: cargo check --all-targets
+      - name: Tests
+        run: cargo test --all-targets
+      - name: Clippy (no suppressed dead code)
+        shell: bash
+        run: |
+          if grep -R -n 'allow(dead_code)' src; then
+            echo 'Remove unused code instead of suppressing dead_code.' >&2
+            exit 1
+          fi
+          cargo clippy --all-targets -- -D warnings -D dead_code
+      - name: Validate installed themes
+        run: cargo run --bin boothsoft-theme-check -- themes
+      - name: Build release
+        run: cargo build --release
+      - name: Package binary and themes
+        shell: bash
+        run: |
+          mkdir -p dist
+          cp '${{ matrix.binary }}' dist/
+          cp -R themes dist/themes
+          cp LICENSE README.md dist/
+      - name: Install WiX v5 (Windows only)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: dotnet tool install --global wix --version 5.0.2
+      - name: Build Windows MSI
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $payload = (Resolve-Path dist).Path
+          wix build installers/windows/BoothSoft.wxs -arch x64 -d "Payload=$payload" -o dist/BoothSoft-0.16.0-x64.msi
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: dist/
+          if-no-files-found: error

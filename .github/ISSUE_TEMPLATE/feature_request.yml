@@ -1,0 +1,32 @@
+name: Feature request
+description: Suggest a focused, measurable BoothSoft improvement.
+title: "feat: "
+labels: ["enhancement", "needs-triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem to solve
+      description: Explain the use case and why existing behavior does not satisfy it.
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed behavior
+      description: What should the guest or administrator be able to do?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+    validations:
+      required: false
+  - type: textarea
+    id: performance
+    attributes:
+      label: CPU, RAM, GPU and security impact
+      description: New threads, allocations, dependencies, network access or theme schema changes.
+    validations:
+      required: true
