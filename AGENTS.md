@@ -37,7 +37,8 @@ facultative, pas de nom de fabricant dans ce dépôt. Organisation : `docs/EXTEN
 
 Refaire les captures et la démonstration du README : thème Party, caméra
 `BOOTHSOFT_SYNTHETIC_CAMERA=guests`, `scripts/perf/monitor.py` pour les clics et
-`ffmpeg -f x11grab` pour la vidéo ; fichiers dans `docs/media/`.
+`ffmpeg -f x11grab` pour la vidéo ; fichiers dans `docs/media/`. Captures du README
+(anglais et français) : `scripts/media/capture.py target/release/boothsoft en|fr` → `docs/media/<langue>/`.
 
 - Le thème d'une marque s'installe comme n'importe quel thème d'utilisateur : dossier
   `BoothSoft/themes/<id>/` ou import d'un ZIP. Le code ne doit **jamais** supposer un

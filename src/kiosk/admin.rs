@@ -861,7 +861,10 @@ impl Kiosk {
         ui.vertical(|ui| {
             ui.spacing_mut().item_spacing.y = 0.0;
             ui.add_space(4.0);
-            ui.label(RichText::new("Maintenance").font(ui::display(22.0)).color(pal.primary));
+            ui.horizontal(|ui| {
+                ui.label(RichText::new("Maintenance").font(ui::display(22.0)).color(pal.primary));
+                ui.label(strong(concat!("v", env!("CARGO_PKG_VERSION")), 13.0, pal.muted));
+            });
             // Worker statuses ("Camera…", "Photo…") are diagnostics, shown on the Données page.
             let technical = ["Data:", "Camera", "Photo", "Print job", "Job ", "Session", "Storage"]
                 .iter().any(|prefix| self.status.starts_with(prefix));
@@ -1472,6 +1475,7 @@ impl Kiosk {
                 });
             }
             divider(ui, pal);
+            ui.label(text(tr!(fr: format!("Version : BoothSoft {}", env!("CARGO_PKG_VERSION")), en: format!("Version: BoothSoft {}", env!("CARGO_PKG_VERSION"))), 13.5, pal.muted));
             ui.label(text(tr!(fr: format!("Stockage : {}", self.storage.disk_location().display()), en: format!("Storage: {}", self.storage.disk_location().display())), 13.5, pal.muted));
             if let Some(logs) = boothsoft::log::directory() {
                 ui.label(text(tr!(fr: format!("Journaux ({} derniers jours) : {}", boothsoft::log::KEEP_DAYS, logs.display()), en: format!("Logs (last {} days): {}", boothsoft::log::KEEP_DAYS, logs.display())), 13.5, pal.muted));

@@ -29,7 +29,7 @@ No cloud, no subscription, no operator — on a modest mini-PC.
 <img src="docs/media/demo.gif" alt="Demo: live view, 5-shot burst, picking prints" width="760">
 
 <sub>Recorded with the bundled “Party” theme and the built-in simulated camera ·
-<a href="docs/media/demo.mp4">full video (38 s)</a></sub>
+<a href="docs/media/demo.mp4">full video (36 s)</a></sub>
 
 </div>
 
@@ -38,7 +38,7 @@ No cloud, no subscription, no operator — on a modest mini-PC.
 > [!NOTE]
 > The interface speaks **English** and **French**. It follows the computer's language
 > (English when the computer uses another one) and can be fixed in maintenance.
-> The screenshots show the French interface. Spanish and Chinese are planned
+> Spanish and Chinese are planned
 > ([spec](docs/specs/LANGUAGES.md)).
 
 ## ✨ Why BoothSoft
@@ -91,13 +91,13 @@ All screenshots use the bundled theme, **Party**.
 
 | Sleep screen | Live view and real-time filters |
 | :---: | :---: |
-| <img src="docs/media/01-accueil.png" width="420"> | <img src="docs/media/03-filtres.png" width="420"> |
+| <img src="docs/media/en/01-welcome.png" width="420"> | <img src="docs/media/en/03-filters.png" width="420"> |
 | **Countdown** | **After a burst: pick your prints** |
-| <img src="docs/media/04-decompte.png" width="420"> | <img src="docs/media/05-choix-rafale.png" width="420"> |
+| <img src="docs/media/en/04-countdown.png" width="420"> | <img src="docs/media/en/05-burst-picker.png" width="420"> |
 | **Print review** | **Number of copies** |
-| <img src="docs/media/06-apercu.png" width="420"> | <img src="docs/media/07-exemplaires.png" width="420"> |
+| <img src="docs/media/en/06-review.png" width="420"> | <img src="docs/media/en/07-copies.png" width="420"> |
 | **Thank you** | **Maintenance** |
-| <img src="docs/media/08-merci.png" width="420"> | <img src="docs/media/09-maintenance.png" width="420"> |
+| <img src="docs/media/en/08-thanks.png" width="420"> | <img src="docs/media/en/09-maintenance.png" width="420"> |
 
 ## ⚡ Performance
 

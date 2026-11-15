@@ -29,7 +29,7 @@ Sans cloud, sans abonnement, sans opérateur — sur un petit mini-PC.
 <img src="docs/media/demo.gif" alt="Démonstration : live, rafale de 5 photos, choix des tirages" width="760">
 
 <sub>Enregistré avec le thème livré « Party » et la caméra simulée intégrée ·
-<a href="docs/media/demo.mp4">vidéo complète (38 s)</a></sub>
+<a href="docs/media/demo.mp4">vidéo complète (36 s)</a></sub>
 
 </div>
 
@@ -90,13 +90,13 @@ Toutes les captures utilisent le thème livré, **Party**.
 
 | Écran de veille | Live et filtres en direct |
 | :---: | :---: |
-| <img src="docs/media/01-accueil.png" width="420"> | <img src="docs/media/03-filtres.png" width="420"> |
+| <img src="docs/media/fr/01-welcome.png" width="420"> | <img src="docs/media/fr/03-filters.png" width="420"> |
 | **Décompte** | **Après une rafale : choix des tirages** |
-| <img src="docs/media/04-decompte.png" width="420"> | <img src="docs/media/05-choix-rafale.png" width="420"> |
+| <img src="docs/media/fr/04-countdown.png" width="420"> | <img src="docs/media/fr/05-burst-picker.png" width="420"> |
 | **Aperçu du tirage** | **Nombre d'exemplaires** |
-| <img src="docs/media/06-apercu.png" width="420"> | <img src="docs/media/07-exemplaires.png" width="420"> |
+| <img src="docs/media/fr/06-review.png" width="420"> | <img src="docs/media/fr/07-copies.png" width="420"> |
 | **Remerciement** | **Maintenance** |
-| <img src="docs/media/08-merci.png" width="420"> | <img src="docs/media/09-maintenance.png" width="420"> |
+| <img src="docs/media/fr/08-thanks.png" width="420"> | <img src="docs/media/fr/09-maintenance.png" width="420"> |
 
 ## ⚡ Performances
 
