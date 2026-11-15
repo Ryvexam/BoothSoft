@@ -347,7 +347,7 @@ Ordre : G1.1 → G1.2 → G1.3 → G1.4 → G1.5. Chaque lot : tests, clippy, sc
 | Fils `bs-record`, `bs-playback`, liste, export | `src/guestbook.rs` | La relecture est cadencée par la position du son ; l'horloge murale prend le relais si la sortie audio cale. |
 | Copie des JPEG du live | `src/camera.rs` (`CameraCommand::Record`) | Webcam MJPEG et caméra simulée : octets d'origine ; autre format : réencodage qualité 80. |
 | Écrans invité | `src/kiosk/guestbook.rs` | Le décompte de 3 s fait partie de l'écran `Recording` (le `Countdown` des photos n'est pas réutilisé). |
-| Maintenance | `src/kiosk/admin.rs` | Carte « Livre d'or vidéo » (Événements), page « Livre d'or » (lecture, suppression avec confirmation, export avec progression), compteur dans Données. |
+| Maintenance | `src/kiosk/admin.rs` | Page « Livre d'or », toujours visible dans le menu : activation et réglages en haut, puis (lecture, suppression avec confirmation, export avec progression), compteur dans Données. |
 
 Mesures (Xvfb 1280×800, rendu logiciel llvmpipe, donc sans GPU : chiffres pessimistes) :
 live 38 % ; test du micro 79 % (jauge à 15 img/s **et** live) ; enregistrement 40 % (≈ live) ;

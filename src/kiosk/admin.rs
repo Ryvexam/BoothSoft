@@ -776,7 +776,7 @@ impl Kiosk {
         self.render_delete_event_dialog(ui.ctx(), full, &pal);
         self.render_message_dialogs(ui.ctx(), full, &pal);
         // Microphone test and playback live only on their own page.
-        if self.admin_section != AdminSection::Event { self.gb_admin.test_mic = None; }
+        if self.admin_section != AdminSection::GuestBook { self.gb_admin.test_mic = None; }
         if self.admin_section != AdminSection::GuestBook { self.gb_admin.playing = None; }
         if self.gb_admin.test_mic.is_some() || self.gb_admin.playing.is_some() || self.gb_admin.export.is_some() {
             ui.ctx().request_repaint_after(Duration::from_millis(66));
@@ -895,10 +895,7 @@ impl Kiosk {
     fn render_sidebar(&mut self, ui: &mut egui::Ui, pal: &Pal) {
         ui.spacing_mut().item_spacing.y = 4.0;
         let printer_missing = self.storage.settings.print_enabled && self.effective_printer().is_none() && self.device_scan.is_none();
-        let show_guestbook = self.storage.settings.guestbook_enabled
-            || !boothsoft::guestbook::event_folders(&self.storage.root.join("sessions")).is_empty();
         for section in AdminSection::ALL {
-            if section == AdminSection::GuestBook && !show_guestbook { continue; }
             let (rect, response) = ui.allocate_exact_size(Vec2::new(ui.available_width(), 46.0), Sense::click());
             let selected = self.admin_section == section;
             let painter = ui.painter();
@@ -1195,7 +1192,6 @@ impl Kiosk {
                     |v| if v == 0 { tr!(fr: "Illimité", en: "Unlimited").into() } else { v.to_string() });
             });
         });
-        self.card_guestbook(ui, pal);
     }
 
     fn page_printing(&mut self, ui: &mut egui::Ui, pal: &Pal) {
@@ -1656,11 +1652,9 @@ impl Kiosk {
             self.gb_admin.loaded = Some(selected.clone());
             self.gb_admin.playing = None;
         }
-        if !self.storage.settings.guestbook_enabled {
-            card(ui, pal, "", "", |ui| {
-                ui.label(text(tr!(fr: "Le livre d'or est désactivé : activez-le dans Événements › Livre d'or vidéo.", en: "The guest book is off: turn it on in Events › Video guest book."), 15.0, pal.muted));
-            });
-        }
+        // Activation and settings first: this page is where the option lives.
+        self.card_guestbook(ui, pal);
+        if !self.storage.settings.guestbook_enabled && folders.len() == 1 && self.gb_admin.messages.is_empty() { return; }
         let mut choice = selected.clone();
         card(ui, pal, "", "", |ui| {
             row(ui, pal, tr!(fr: "Événement", en: "Event"), "", |ui| {
