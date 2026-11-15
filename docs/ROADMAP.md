@@ -137,7 +137,7 @@ qui peut faire échouer une soirée, puis la fluidité, puis les fonctions.
 | L1 | ◐ **Système de langues** : anglais par défaut et français faits ; espagnol, chinois (`docs/specs/LANGUAGES.md`) | P2 | XL (5 lots) | Projet utilisable hors de France |
 | C3 | Réglages par événement (tirages prévus, exemplaires, rafale, limite de séances) | P2 | M | « La borne s'allume, tout est prêt » |
 | C1 | GIF / boomerang depuis la rafale | P3 | M | Parité de modes |
-| C5 | Bilan d'événement et export USB | P3 | S | Livraison au client |
+| C5 | Bilan d'événement et export USB (✅ export ZIP) | P3 | S | Livraison au client |
 | O1 | Découpage du code, tests d'interface, intégration continue | P3 | M | Vitesse de développement |
 | O3 | ✅ **Publication open source** : aucune marque dans le dépôt, un seul thème livré (« Party »), licence, README | **P1** | S | Dépôt publiable sans donnée privée |
 | O2 | Installeur Windows signé et durcissement de la borne | P3 | M | Mise en service en 10 minutes |
@@ -758,8 +758,9 @@ tirages : la borne change seule à l'heure prévue, sans redémarrage, sans touc
 ### C5 — Bilan d'événement et export (P3, S)
 
 - Page Données : par événement, séances, photos, tirages, heure de pointe.
-- « Exporter vers une clé USB » : copie du dossier de l'événement + planche-contact +
-  bilan en texte. Copie faite par le fil de tâches lentes avec barre de progression.
+- ✅ « Exporter (ZIP) » par événement : tout le dossier (photos, tirages, livre d'or,
+  manifestes) en un ZIP, écrit en arrière-plan avec barre de progression (`storage::export_event_zip`).
+- Reste : planche-contact + bilan en texte dans le ZIP.
 
 ### O1 — Santé du code (P3, M)
 

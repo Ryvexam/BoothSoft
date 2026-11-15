@@ -110,6 +110,9 @@ struct GuestArt {
     logo: Option<TextureHandle>,
 }
 
+/// Event being zipped: folder, files done, total, result (count and path, or error).
+type EventExport = (String, Arc<std::sync::atomic::AtomicUsize>, usize, std::sync::mpsc::Receiver<Result<(usize, std::path::PathBuf), String>>);
+
 pub struct Kiosk {
     storage: Storage,
     themes_root: PathBuf,
@@ -194,6 +197,7 @@ pub struct Kiosk {
     /// Maintenance: stored events and their size (computed when Data opens), event to delete.
     event_sizes: Option<Vec<(String, u64)>>,
     pending_disk_delete: Option<String>,
+    event_export: Option<EventExport>,
     /// Guest's choice on the live view: single photo (default), burst or guest book.
     guest_mode: GuestMode,
     /// Guest-book screens' state (microphone, recording, playback).
@@ -273,7 +277,7 @@ impl Kiosk {
             failed_pin_attempts: 0, pin_blocked_until: None,
             active_filter: PhotoFilter::Original, preview_filtered: None,
             frames: [None, None], frame_path_loaded: String::new(), guest_portrait: false,
-            art: None, flash_at: None, thanks_at: None, thanks_copies: 0, copies_picker: None, copies_confirm: false, print_seq: 0, system_printer: None, burst: None, pulse, started_at: Instant::now(), logged_status: String::new(), logged_screen: None, error_since: None, camera_lost: false, camera_kick: None, disk_free: None, event_sizes: None, pending_disk_delete: None, guest_mode: GuestMode::Photo, guestbook: None, thanks_message: None, gb_admin: admin::GuestBookAdmin::default(), autostart: None,
+            art: None, flash_at: None, thanks_at: None, thanks_copies: 0, copies_picker: None, copies_confirm: false, print_seq: 0, system_printer: None, burst: None, pulse, started_at: Instant::now(), logged_status: String::new(), logged_screen: None, error_since: None, camera_lost: false, camera_kick: None, disk_free: None, event_sizes: None, pending_disk_delete: None, event_export: None, guest_mode: GuestMode::Photo, guestbook: None, thanks_message: None, gb_admin: admin::GuestBookAdmin::default(), autostart: None,
             admin_taps: (0, Instant::now()), notice: None, review_title: 0,
             live: None, live_checked: false, numeral: ui::BigNumeral::default(), renderer: String::new(),
         }

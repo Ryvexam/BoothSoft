@@ -780,7 +780,7 @@ impl Kiosk {
         // Microphone test and playback live only on their own page.
         if self.admin_section != AdminSection::GuestBook { self.gb_admin.test_mic = None; }
         if self.admin_section != AdminSection::GuestBook { self.gb_admin.playing = None; }
-        if self.gb_admin.test_mic.is_some() || self.gb_admin.playing.is_some() || self.gb_admin.export.is_some() {
+        if self.gb_admin.test_mic.is_some() || self.gb_admin.playing.is_some() || self.gb_admin.export.is_some() || self.event_export.is_some() {
             ui.ctx().request_repaint_after(Duration::from_millis(66));
         }
     }
@@ -1532,6 +1532,13 @@ impl Kiosk {
     }
 }
 
+fn count_files(dir: &std::path::Path, total: &mut usize) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.filter_map(Result::ok) {
+        if entry.file_type().is_ok_and(|t| t.is_dir()) { count_files(&entry.path(), total); } else { *total += 1; }
+    }
+}
+
 /// « 1 min 05 s », « 12 s ».
 fn duration_label(seconds: f64) -> String {
     let total = seconds.round() as u64;
@@ -1939,6 +1946,15 @@ impl Kiosk {
         let current = self.current_event().folder;
         let free = self.disk_free.map(human).unwrap_or_else(|| "?".into());
         let mut delete = None;
+        let mut export = None;
+        // Finished export: result in the status line, list refreshed.
+        if let Some(result) = self.event_export.as_ref().and_then(|job| job.3.try_recv().ok()) {
+            self.status = match result {
+                Ok((count, path)) => tr!(fr: format!("Événement exporté ({count} fichiers) : {}", path.display()), en: format!("Event exported ({count} files): {}", path.display())),
+                Err(error) => tr!(fr: format!("Export impossible : {error}"), en: format!("Export failed: {error}")),
+            };
+            self.event_export = None;
+        }
         card(ui, pal, tr!(fr: "Événements enregistrés", en: "Stored events"),
              &tr!(fr: format!("Espace libre : {free}. Exportez les photos d'un événement avant de le supprimer."), en: format!("Free space: {free}. Export an event's photos before deleting it.")), |ui| {
             let list = self.event_sizes.clone().unwrap_or_default();
@@ -1947,12 +1963,47 @@ impl Kiosk {
                 if index > 0 { divider(ui, pal); }
                 let is_current = *folder == current;
                 let detail = if is_current { tr!(fr: format!("{} · événement en cours", human(*size)), en: format!("{} · current event", human(*size))) } else { human(*size) };
+                let exporting = self.event_export.as_ref().map(|job| job.0.clone());
                 row(ui, pal, folder, &detail, |ui| {
-                    if !is_current && btn(ui, pal, tr!(fr: "Supprimer", en: "Delete"), Btn::Danger).clicked() { delete = Some(folder.clone()); }
+                    if !is_current && exporting.is_none() && btn(ui, pal, tr!(fr: "Supprimer", en: "Delete"), Btn::Danger).clicked() { delete = Some(folder.clone()); }
+                    if btn_enabled(ui, pal, exporting.is_none(), tr!(fr: "Exporter (ZIP)", en: "Export (ZIP)"), Btn::Secondary) { export = Some(folder.clone()); }
                 });
+                if exporting.as_deref() == Some(folder.as_str()) {
+                    if let Some((_, done, total, _)) = self.event_export.as_ref() {
+                        let done = done.load(std::sync::atomic::Ordering::Relaxed);
+                        progress(ui, pal, if *total == 0 { 1.0 } else { done as f32 / *total as f32 }, pal.primary);
+                        ui.label(text(tr!(fr: format!("Export… {done} / {total} fichiers"), en: format!("Exporting… {done} / {total} files")), 13.5, pal.muted));
+                    }
+                }
             }
         });
         if delete.is_some() { self.pending_disk_delete = delete; }
+        if let Some(folder) = export { self.start_event_export(ui.ctx(), folder); }
+    }
+
+    /// Asks where to save, then zips the event on a worker thread (progress on the page).
+    fn start_event_export(&mut self, ctx: &egui::Context, folder: String) {
+        // Native dialog on the application thread (macOS requirement).
+        let Some(target) = rfd::FileDialog::new()
+            .set_title(tr!(fr: "Où enregistrer l'événement ?", en: "Where should the event be saved?"))
+            .set_file_name(format!("{folder}.zip")).add_filter("ZIP", &["zip"]).save_file() else { return };
+        let sessions = self.storage.root.join("sessions");
+        let total = { let mut files = 0usize; count_files(&sessions.join(&folder), &mut files); files };
+        let done = Arc::new(std::sync::atomic::AtomicUsize::new(0));
+        let counter = Arc::clone(&done);
+        let (tx, rx) = std::sync::mpsc::sync_channel(1);
+        let wake = ctx.clone();
+        let name = folder.clone();
+        let spawned = std::thread::Builder::new().name("bs-event-zip".into()).spawn(move || {
+            let result = boothsoft::storage::export_event_zip(&sessions, &name, &target, &|i, _| {
+                counter.store(i, std::sync::atomic::Ordering::Relaxed);
+                wake.request_repaint_after(Duration::from_millis(100));
+            }).map(|count| (count, target.clone())).map_err(|e| e.to_string());
+            if result.is_ok() { boothsoft::log::info(format!("Event {name} exported to {}", target.display())); }
+            let _ = tx.send(result);
+            wake.request_repaint();
+        });
+        if spawned.is_ok() { self.event_export = Some((folder, done, total, rx)); }
     }
 
     fn render_disk_delete_dialog(&mut self, ctx: &egui::Context, full: Rect, pal: &Pal) {

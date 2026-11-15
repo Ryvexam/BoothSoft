@@ -253,6 +253,56 @@ pub fn export_contact_sheet(paths: &[PathBuf], output: &Path) -> io::Result<()> 
     canvas.save_with_format(output, ImageFormat::Jpeg).map_err(io::Error::other)
 }
 
+/// Files of an event folder, relative paths, sorted (for the ZIP export).
+fn event_files(dir: &Path, prefix: &Path, out: &mut Vec<(PathBuf, PathBuf)>) -> io::Result<()> {
+    for entry in fs::read_dir(dir)? {
+        let entry = entry?;
+        let kind = entry.file_type()?;
+        let relative = prefix.join(entry.file_name());
+        if kind.is_dir() { event_files(&entry.path(), &relative, out)?; }
+        else if kind.is_file() && !entry.file_name().to_string_lossy().ends_with(".part") { out.push((entry.path(), relative)); }
+    }
+    Ok(())
+}
+
+/// Writes every file of event `folder` (photos, prints, guest book, manifests)
+/// into one ZIP at `target`. Photos and videos are stored as they are (already
+/// compressed); text files are deflated. Written to `<target>.part`, then
+/// renamed: a ZIP that exists is complete. Returns the number of files.
+pub fn export_event_zip(sessions: &Path, folder: &str, target: &Path, progress: &dyn Fn(usize, usize)) -> io::Result<usize> {
+    use zip::{write::SimpleFileOptions, CompressionMethod, ZipWriter};
+    if folder.is_empty() || folder.contains(['/', '\\']) || folder.contains("..") {
+        return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid event folder"));
+    }
+    let mut files = Vec::new();
+    event_files(&sessions.join(folder), Path::new(folder), &mut files)?;
+    files.sort_by(|a, b| a.1.cmp(&b.1));
+    let mut part = target.as_os_str().to_owned();
+    part.push(".part");
+    let part = PathBuf::from(part);
+    let result = (|| -> io::Result<()> {
+        let mut zip = ZipWriter::new(io::BufWriter::with_capacity(1 << 20, fs::File::create(&part)?));
+        for (index, (source, name)) in files.iter().enumerate() {
+            progress(index, files.len());
+            let size = fs::metadata(source)?.len();
+            let compressed = matches!(source.extension().and_then(|e| e.to_str()).map(str::to_ascii_lowercase).as_deref(),
+                Some("json" | "txt" | "log"));
+            let options = SimpleFileOptions::default()
+                .compression_method(if compressed { CompressionMethod::Deflated } else { CompressionMethod::Stored })
+                .large_file(size >= u64::from(u32::MAX));
+            let name = name.to_string_lossy().replace('\\', "/");
+            zip.start_file(name, options).map_err(io::Error::other)?;
+            io::copy(&mut fs::File::open(source)?, &mut zip)?;
+        }
+        let file = zip.finish().map_err(io::Error::other)?.into_inner().map_err(|e| e.into_error())?;
+        file.sync_all()
+    })();
+    if let Err(error) = result { let _ = fs::remove_file(&part); return Err(error); }
+    fs::rename(&part, target)?;
+    progress(files.len(), files.len());
+    Ok(files.len())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -335,6 +385,28 @@ mod tests {
         storage.delete_event(&folder).unwrap();
         assert!(storage.sessions.is_empty());
         assert_eq!(storage.event_folders(), vec!["old-event".to_owned()]);
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn an_event_exports_as_one_zip() {
+        let root = std::env::temp_dir().join(format!("boothsoft-zip-event-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        let event = root.join("sessions/mariage");
+        fs::create_dir_all(event.join("s1")).unwrap();
+        fs::create_dir_all(event.join("livre-d-or")).unwrap();
+        fs::write(event.join("s1/photo-01.jpg"), vec![7u8; 5000]).unwrap();
+        fs::write(event.join("s1/session.json"), b"{\"id\":\"s1\"}").unwrap();
+        fs::write(event.join("livre-d-or/message.avi"), vec![1u8; 300]).unwrap();
+        fs::write(event.join("livre-d-or/message.avi.part"), b"half").unwrap();
+        let target = root.join("mariage.zip");
+        assert_eq!(export_event_zip(&root.join("sessions"), "mariage", &target, &|_, _| {}).unwrap(), 3);
+        let mut archive = zip::ZipArchive::new(fs::File::open(&target).unwrap()).unwrap();
+        let mut names: Vec<String> = archive.file_names().map(str::to_owned).collect();
+        names.sort();
+        assert_eq!(names, ["mariage/livre-d-or/message.avi", "mariage/s1/photo-01.jpg", "mariage/s1/session.json"]);
+        assert_eq!(archive.by_name("mariage/s1/photo-01.jpg").unwrap().size(), 5000);
+        assert!(export_event_zip(&root.join("sessions"), "../x", &target, &|_, _| {}).is_err());
         fs::remove_dir_all(root).unwrap();
     }
 
