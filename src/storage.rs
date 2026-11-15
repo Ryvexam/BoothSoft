@@ -143,6 +143,31 @@ impl Storage {
         &self.root
     }
 
+    /// Event folders under `sessions/`, sorted.
+    pub fn event_folders(&self) -> Vec<String> {
+        let Ok(entries) = fs::read_dir(self.root.join("sessions")) else { return Vec::new() };
+        let mut names: Vec<String> = entries.filter_map(Result::ok)
+            .filter(|e| e.file_type().is_ok_and(|t| t.is_dir()))
+            // A folder holding session.json is a session from before event folders, not an event.
+            .filter(|e| !e.path().join("session.json").exists())
+            .filter_map(|e| e.file_name().to_str().map(str::to_owned))
+            .filter(|name| !name.starts_with('.'))
+            .collect();
+        names.sort();
+        names
+    }
+
+    /// Deletes an event's folder (photos, prints, guest book) and forgets its sessions.
+    /// Only plain folder names are accepted: never a path.
+    pub fn delete_event(&mut self, folder: &str) -> io::Result<()> {
+        if folder.is_empty() || folder.contains(['/', '\\']) || folder.contains("..") {
+            return Err(io::Error::new(io::ErrorKind::InvalidInput, "Invalid event folder"));
+        }
+        fs::remove_dir_all(self.root.join("sessions").join(folder))?;
+        self.sessions.retain(|session| session.folder != folder);
+        Ok(())
+    }
+
     pub fn session_dir(&self, session: &Session) -> PathBuf {
         let base = self.root.join("sessions");
         if session.folder.is_empty() { base.join(&session.id) } else { base.join(&session.folder).join(&session.id) }
@@ -287,6 +312,29 @@ mod tests {
         let folder = crate::model::slug(&storage.settings.event_name);
         assert!(storage.session_dir(&first).starts_with(root.join("sessions").join(folder)));
         assert!(storage.session_dir(&second).join("session.json").is_file());
+        fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn events_are_listed_and_deleted_safely() {
+        let root = std::env::temp_dir().join(format!("boothsoft-delete-event-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&root);
+        fs::create_dir_all(root.join("sessions")).unwrap();
+        let mut storage = Storage { root: root.clone(), settings: Settings::default(), sessions: Vec::new() };
+        let session = storage.new_session().unwrap();
+        let folder = session.folder.clone();
+        fs::create_dir_all(root.join("sessions/old-event/x")).unwrap();
+        // A session from before event folders is not listed as an event.
+        fs::create_dir_all(root.join("sessions/20250101-legacy")).unwrap();
+        fs::write(root.join("sessions/20250101-legacy/session.json"), b"{}").unwrap();
+        let mut expected = vec![folder.clone(), "old-event".to_owned()];
+        expected.sort();
+        assert_eq!(storage.event_folders(), expected);
+        assert!(storage.delete_event("../sessions").is_err());
+        assert!(storage.delete_event("").is_err());
+        storage.delete_event(&folder).unwrap();
+        assert!(storage.sessions.is_empty());
+        assert_eq!(storage.event_folders(), vec!["old-event".to_owned()]);
         fs::remove_dir_all(root).unwrap();
     }
 

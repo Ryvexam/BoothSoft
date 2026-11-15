@@ -634,6 +634,7 @@ impl Kiosk {
         self.admin_authorized = false;
         self.admin_saved = None;
         self.gb_admin = GuestBookAdmin::default();
+        self.event_sizes = None;
         self.pin_entry.clear();
         self.new_pin.clear();
         self.enter_ready();
@@ -775,6 +776,7 @@ impl Kiosk {
         self.render_leave_dialog(ui.ctx(), full, &pal);
         self.render_delete_event_dialog(ui.ctx(), full, &pal);
         self.render_message_dialogs(ui.ctx(), full, &pal);
+        self.render_disk_delete_dialog(ui.ctx(), full, &pal);
         // Microphone test and playback live only on their own page.
         if self.admin_section != AdminSection::GuestBook { self.gb_admin.test_mic = None; }
         if self.admin_section != AdminSection::GuestBook { self.gb_admin.playing = None; }
@@ -1055,6 +1057,7 @@ impl Kiosk {
 
     fn page_overview(&mut self, ui: &mut egui::Ui, pal: &Pal) {
         self.paint_hero(ui, pal);
+        self.disk_warning(ui, pal);
         let printer = self.effective_printer();
         let printing = self.storage.settings.print_enabled;
         let left = self.prints_left();
@@ -1457,6 +1460,8 @@ impl Kiosk {
     }
 
     fn page_data(&mut self, ui: &mut egui::Ui, pal: &Pal) {
+        self.disk_warning(ui, pal);
+        self.card_events_on_disk(ui, pal);
         let photos: usize = self.storage.sessions.iter().map(|session| session.shots.len()).sum();
         let messages = boothsoft::guestbook::list(&self.storage.root.join("sessions").join(self.current_event().folder));
         let message_seconds: f64 = messages.iter().map(|m| m.info.seconds).sum();
@@ -1894,6 +1899,94 @@ impl Kiosk {
                 boothsoft::log::info(format!("Frame imported ({name}): window {}x{} at ({}, {})", w.width, w.height, w.x, w.y));
             }
             Err(error) => self.status = tr!(fr: format!("Import du cadre impossible : {error}"), en: format!("Cannot import the frame: {error}")),
+        }
+    }
+}
+
+impl Kiosk {
+    /// Free-space warning (ROADMAP B4): orange under 5 GB, red under 500 MB.
+    fn disk_warning(&mut self, ui: &mut egui::Ui, pal: &Pal) {
+        use boothsoft::disk::{human, Space};
+        let space = self.check_disk();
+        let Some(free) = self.disk_free else { return };
+        if space == Space::Ok { return; }
+        let (title, body) = if space == Space::Full {
+            (tr!(fr: format!("Mémoire pleine : {} libres", human(free)), en: format!("Storage full: {} free", human(free))),
+             tr!(fr: "La borne ne démarre plus de séance. Exportez puis supprimez d'anciens événements ci-dessous (Données & export).",
+                 en: "The booth starts no new session. Export, then delete old events (Data & export)."))
+        } else {
+            (tr!(fr: format!("Mémoire presque pleine : {} libres", human(free)), en: format!("Storage almost full: {} free", human(free))),
+             tr!(fr: "Exportez puis supprimez d'anciens événements dans Données & export.", en: "Export, then delete old events in Data & export."))
+        };
+        egui::Frame::new().fill(ui::alpha(pal.warn, 30)).stroke(Stroke::new(1.0_f32, pal.warn)).corner_radius(14)
+            .inner_margin(Margin::same(18)).show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.label(strong(title, 17.0, pal.ink));
+                ui.label(text(body, 14.0, pal.muted));
+            });
+        ui.add_space(12.0);
+    }
+
+    /// Events stored on the disk, with their size; old ones can be deleted.
+    fn card_events_on_disk(&mut self, ui: &mut egui::Ui, pal: &Pal) {
+        use boothsoft::disk::human;
+        if self.event_sizes.is_none() {
+            // A few thousand file sizes at most: fast enough on page open.
+            let root = self.storage.root.join("sessions");
+            self.event_sizes = Some(self.storage.event_folders().into_iter()
+                .map(|folder| { let size = boothsoft::disk::dir_size(&root.join(&folder)); (folder, size) }).collect());
+        }
+        let current = self.current_event().folder;
+        let free = self.disk_free.map(human).unwrap_or_else(|| "?".into());
+        let mut delete = None;
+        card(ui, pal, tr!(fr: "Événements enregistrés", en: "Stored events"),
+             &tr!(fr: format!("Espace libre : {free}. Exportez les photos d'un événement avant de le supprimer."), en: format!("Free space: {free}. Export an event's photos before deleting it.")), |ui| {
+            let list = self.event_sizes.clone().unwrap_or_default();
+            if list.is_empty() { ui.label(text(tr!(fr: "Aucun événement enregistré.", en: "No stored event."), 14.0, pal.muted)); }
+            for (index, (folder, size)) in list.iter().enumerate() {
+                if index > 0 { divider(ui, pal); }
+                let is_current = *folder == current;
+                let detail = if is_current { tr!(fr: format!("{} · événement en cours", human(*size)), en: format!("{} · current event", human(*size))) } else { human(*size) };
+                row(ui, pal, folder, &detail, |ui| {
+                    if !is_current && btn(ui, pal, tr!(fr: "Supprimer", en: "Delete"), Btn::Danger).clicked() { delete = Some(folder.clone()); }
+                });
+            }
+        });
+        if delete.is_some() { self.pending_disk_delete = delete; }
+    }
+
+    fn render_disk_delete_dialog(&mut self, ctx: &egui::Context, full: Rect, pal: &Pal) {
+        let Some(folder) = self.pending_disk_delete.clone() else { return };
+        let mut choice: Option<bool> = None;
+        let outside = modal(ctx, "delete-stored-event", full, pal, 560.0, |ui| {
+            ui.label(RichText::new(tr!(fr: "Supprimer cet événement du disque ?", en: "Delete this event from the disk?")).font(ui::display(28.0)).color(pal.ink));
+            ui.add_space(4.0);
+            ui.label(text(tr!(fr: format!("Toutes les photos, tirages et messages de « {folder} » seront effacés. C'est définitif."),
+                              en: format!("Every photo, print and message of “{folder}” will be erased. This cannot be undone.")), 16.0, pal.muted));
+            ui.add_space(14.0);
+            ui.horizontal(|ui| {
+                if ui.add(egui::Button::new(strong(tr!(fr: "Annuler", en: "Cancel"), 16.0, pal.ink)).fill(pal.surface)
+                    .stroke(Stroke::new(1.0_f32, ui::alpha(pal.ink, 60))).corner_radius(12).min_size(Vec2::new(150.0, 54.0))).clicked() { choice = Some(false); }
+                if ui.add(egui::Button::new(strong(tr!(fr: "Supprimer définitivement", en: "Delete for good"), 16.0, Color32::WHITE)).fill(pal.warn)
+                    .corner_radius(12).min_size(Vec2::new(220.0, 54.0))).clicked() { choice = Some(true); }
+            });
+        });
+        if outside { choice = choice.or(Some(false)); }
+        match choice {
+            Some(true) => {
+                match self.storage.delete_event(&folder) {
+                    Ok(()) => {
+                        boothsoft::log::info(format!("Event folder {folder} deleted in maintenance"));
+                        self.status = tr!(fr: format!("« {folder} » supprimé"), en: format!("“{folder}” deleted"));
+                    }
+                    Err(error) => self.status = tr!(fr: format!("Suppression impossible : {error}"), en: format!("Cannot delete: {error}")),
+                }
+                self.pending_disk_delete = None;
+                self.event_sizes = None;
+                self.check_disk();
+            }
+            Some(false) => self.pending_disk_delete = None,
+            None => {}
         }
     }
 }

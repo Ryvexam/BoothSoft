@@ -15,6 +15,7 @@ pub mod avi;
 pub mod camera;
 pub mod compositor;
 pub mod devices;
+pub mod disk;
 pub mod durable_file;
 pub mod effects;
 pub mod guestbook;

@@ -185,6 +185,15 @@ pub struct Kiosk {
     logged_screen: Option<Screen>,
     /// When the error screen appeared (it retries by itself).
     error_since: Option<Instant>,
+    /// The camera thread reported the camera gone and is reconnecting by itself.
+    camera_lost: bool,
+    /// Last time the error screen asked the camera thread to start over.
+    camera_kick: Option<Instant>,
+    /// Free space on the data disk at the last check (start-up, every session).
+    disk_free: Option<u64>,
+    /// Maintenance: stored events and their size (computed when Data opens), event to delete.
+    event_sizes: Option<Vec<(String, u64)>>,
+    pending_disk_delete: Option<String>,
     /// Guest's choice on the live view: single photo (default), burst or guest book.
     guest_mode: GuestMode,
     /// Guest-book screens' state (microphone, recording, playback).
@@ -264,7 +273,7 @@ impl Kiosk {
             failed_pin_attempts: 0, pin_blocked_until: None,
             active_filter: PhotoFilter::Original, preview_filtered: None,
             frames: [None, None], frame_path_loaded: String::new(), guest_portrait: false,
-            art: None, flash_at: None, thanks_at: None, thanks_copies: 0, copies_picker: None, copies_confirm: false, print_seq: 0, system_printer: None, burst: None, pulse, started_at: Instant::now(), logged_status: String::new(), logged_screen: None, error_since: None, guest_mode: GuestMode::Photo, guestbook: None, thanks_message: None, gb_admin: admin::GuestBookAdmin::default(), autostart: None,
+            art: None, flash_at: None, thanks_at: None, thanks_copies: 0, copies_picker: None, copies_confirm: false, print_seq: 0, system_printer: None, burst: None, pulse, started_at: Instant::now(), logged_status: String::new(), logged_screen: None, error_since: None, camera_lost: false, camera_kick: None, disk_free: None, event_sizes: None, pending_disk_delete: None, guest_mode: GuestMode::Photo, guestbook: None, thanks_message: None, gb_admin: admin::GuestBookAdmin::default(), autostart: None,
             admin_taps: (0, Instant::now()), notice: None, review_title: 0,
             live: None, live_checked: false, numeral: ui::BigNumeral::default(), renderer: String::new(),
         }
@@ -286,6 +295,23 @@ impl Kiosk {
                     self.status = format!("Camera error: {error}");
                     if self.capture_pending.is_some() { self.capture_pending = None; self.screen = Screen::Error; }
                 },
+                CameraEvent::Lost(error) => {
+                    self.status = format!("Camera lost: {error}");
+                    self.camera_lost = true;
+                    // Guests see the pause screen instead of a frozen picture; any
+                    // countdown or video message in progress is abandoned (photos taken stay).
+                    if matches!(self.screen, Screen::Ready | Screen::Countdown | Screen::MicCheck | Screen::Recording) {
+                        if self.guestbook.take().is_some() { self.camera.send(CameraCommand::Record(None)); }
+                        self.capture_pending = None;
+                        self.screen = Screen::Error;
+                        self.error_since = Some(Instant::now());
+                    }
+                }
+                CameraEvent::Connected => {
+                    self.camera_lost = false;
+                    self.camera_kick = None;
+                    if self.screen == Screen::Error { self.error_since = None; self.finish_session(); }
+                }
             }
         }
         if let Some(preview) = self.camera.take_preview() {
@@ -307,7 +333,26 @@ impl Kiosk {
         }
     }
 
+    /// Free space check (one system call). Logged when the level changes.
+    fn check_disk(&mut self) -> boothsoft::disk::Space {
+        use boothsoft::disk::{free_bytes, human, Space};
+        let before = self.disk_free.map(Space::of);
+        self.disk_free = free_bytes(&self.storage.root);
+        let Some(free) = self.disk_free else { return Space::Ok };
+        let space = Space::of(free);
+        if before != Some(space) && space != Space::Ok {
+            boothsoft::log::info(format!("Disk space {space:?}: {} free", human(free)));
+        }
+        space
+    }
+
     fn start_session(&mut self) {
+        // Never start writing photos on a nearly full disk (ROADMAP B4).
+        if self.check_disk() == boothsoft::disk::Space::Full {
+            self.status = "Disk full".into();
+            self.notice = Some((tr!(fr: "La borne fait une pause : sa mémoire est pleine.", en: "The booth is taking a break: its storage is full.").into(), Instant::now()));
+            return;
+        }
 
         let event = self.current_event();
         let event_sessions = self.storage.sessions.iter().filter(|s|
@@ -1517,21 +1562,29 @@ impl Kiosk {
             ui::display(46.0 * scale), pal.primary).bottom();
         painter.text(Pos2::new(rect.center().x, bottom + 14.0 * scale), Align2::CENTER_TOP,
             tr!(fr: "Un instant, on relance tout ça automatiquement.", en: "One moment, everything restarts by itself."), ui::body(21.0 * scale), pal.fg);
-        let label = tr!(fr: "Réessayer", en: "Try again");
-        let height = 78.0 * scale;
-        let width = ui::button_width(ui, label, height, true);
-        let button = Rect::from_center_size(Pos2::new(rect.center().x, bottom + 110.0 * scale), Vec2::new(width, height));
-        // Nobody has to touch anything: the booth retries by itself every 5 s.
+        // No button: the camera thread reconnects by itself (every 2 s, then 5 s)
+        // and the live view comes back on its own. Only the elapsed time moves.
         let since = *self.error_since.get_or_insert_with(Instant::now);
-        let auto_retry = since.elapsed() >= Duration::from_secs(5);
-        if !auto_retry { ui.ctx().request_repaint_after(Duration::from_secs(5) - since.elapsed()); }
-        if ui::button(ui, button, "retry", label, Some(Icon::Retake), Kind::Primary, &pal) || auto_retry {
+        let waited = since.elapsed().as_secs();
+        let line = if waited < 3 { tr!(fr: "Reconnexion…".to_owned(), en: "Reconnecting…".to_owned()) }
+            else { tr!(fr: format!("Reconnexion… {waited} s"), en: format!("Reconnecting… {waited} s")) };
+        let pill = painter.layout_no_wrap(line, ui::bold(18.0 * scale), pal.fg);
+        let pill_rect = Rect::from_center_size(Pos2::new(rect.center().x, bottom + 96.0 * scale), pill.size() + Vec2::new(36.0, 18.0) * scale);
+        painter.rect_filled(pill_rect, pill_rect.height() / 2.0, ui::alpha(pal.fg, 26));
+        painter.galley(pill_rect.center() - pill.size() / 2.0, pill, pal.fg);
+        if !self.camera_lost && waited >= 5 {
+            // A failed capture with a working camera: back to the live view.
             self.error_since = None;
-            if !self.storage.settings.demo_mode {
-                self.camera.send(CameraCommand::Start { index: self.storage.settings.camera_index });
-            }
             self.finish_session();
+            return;
         }
+        let kicked = self.camera_kick.get_or_insert(since);
+        if self.camera_lost && kicked.elapsed() >= Duration::from_secs(60) && !self.storage.settings.demo_mode {
+            // Belt and braces: ask the camera thread to start over once a minute.
+            *kicked = Instant::now();
+            self.camera.send(CameraCommand::Start { index: self.storage.settings.camera_index });
+        }
+        ui.ctx().request_repaint_after(Duration::from_secs(1));
     }
 
     /// Shutter flash in a few discrete steps (about 6 repaints in total).

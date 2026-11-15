@@ -90,7 +90,32 @@ pub enum CameraEvent {
     Motion,
     Status(String),
     Error(String),
+    /// The camera answers again (after a start or an automatic reconnection).
+    Connected,
+    /// The camera stopped answering (cable, battery, power): the camera thread
+    /// reconnects by itself, every 2 s then every 5 s, without waking the UI.
+    Lost(String),
 }
+
+/// Test hook: `BOOTHSOFT_SYNTHETIC_UNPLUG=5-12` makes the synthetic camera vanish
+/// between 5 s and 12 s after start-up (reads and opening both fail).
+fn synthetic_unplugged() -> bool {
+    static WINDOW: std::sync::OnceLock<Option<(Instant, Duration, Duration)>> = std::sync::OnceLock::new();
+    let window = WINDOW.get_or_init(|| {
+        let spec = std::env::var("BOOTHSOFT_SYNTHETIC_UNPLUG").ok()?;
+        let (a, b) = spec.split_once('-')?;
+        Some((Instant::now(), Duration::from_secs_f32(a.trim().parse().ok()?), Duration::from_secs_f32(b.trim().parse().ok()?)))
+    });
+    window.is_some_and(|(start, from, to)| { let t = start.elapsed(); t >= from && t < to })
+}
+
+/// Delay before the next reconnection attempt: every 2 s for the first 30 s, then every 5 s.
+fn reconnect_delay(lost_for: Duration) -> Duration {
+    if lost_for < Duration::from_secs(30) { Duration::from_secs(2) } else { Duration::from_secs(5) }
+}
+
+/// Consecutive failed reads before the camera is considered gone (≈ 0.5 s of live view).
+const LOST_AFTER_FAILURES: u32 = 15;
 
 pub struct CameraWorker {
     tx: Sender<CameraCommand>,
@@ -431,6 +456,7 @@ impl Default for SyntheticSource {
 
 impl FrameSource for SyntheticSource {
     fn read(&mut self, buffer: &mut Vec<u8>, rgba: bool) -> Result<(u32, u32), String> {
+        if synthetic_unplugged() { return Err("Synthetic camera unplugged".into()); }
         let jpeg = &self.frames[self.next];
         self.last = self.next;
         self.next = (self.next + 1) % self.frames.len();
@@ -467,18 +493,44 @@ fn camera_loop(commands: Receiver<CameraCommand>, events: SyncSender<CameraEvent
     let mut next_preview = Instant::now();
     let mut recorder: Option<SyncSender<RecordFrame>> = None;
     let mut record_dropped = 0u32;
+    // Self-repair (ROADMAP Z2/B1): the camera asked for, when it was lost, next attempt.
+    let mut wanted: Option<u32> = None;
+    let mut lost_since: Option<Instant> = None;
+    let mut next_retry = Instant::now();
+    let mut read_failures = 0u32;
+    let mut last_read_error = String::new();
     loop {
         // Block when stopped/paused. When previewing, sleep until the next
         // frame is due instead of periodically polling the application state.
+        // Camera lost: wake only for the next reconnection attempt.
         let command = if camera.is_some() && (preview_enabled || sleeping) {
             commands.recv_timeout(next_preview.saturating_duration_since(Instant::now()))
+        } else if camera.is_none() && wanted.is_some() && lost_since.is_some() {
+            commands.recv_timeout(next_retry.saturating_duration_since(Instant::now()))
         } else {
             commands.recv().map_err(|_| mpsc::RecvTimeoutError::Disconnected)
         };
+        let mut reopen = None;
         match command {
             Ok(CameraCommand::Start { index }) => {
-                camera = None;
-                if let Ok(mut slot) = preview.lock() { *slot = None; }
+                wanted = Some(index);
+                lost_since = None;
+                reopen = Some(index);
+            }
+            Err(mpsc::RecvTimeoutError::Timeout) if camera.is_none() && lost_since.is_some() && Instant::now() >= next_retry => {
+                reopen = wanted;
+            }
+            _ => {}
+        }
+        if let Some(index) = reopen {
+            camera = None;
+            read_failures = 0;
+            if let Ok(mut slot) = preview.lock() { *slot = None; }
+            let first_try = lost_since.is_none();
+            let opened: Result<(Box<dyn FrameSource>, String), String> = if SyntheticSource::enabled() {
+                if synthetic_unplugged() { Err("Synthetic camera unplugged".into()) }
+                else { Ok((Box::new(SyntheticSource::new()), "Synthetic camera connected".into())) }
+            } else {
                 // Prefer a native 720p/30 FPS MJPEG stream: smooth live view, cheap to decode.
                 // Fall back when the camera driver does not expose MJPEG.
                 let make_camera = |fourcc| Camera::new(
@@ -487,30 +539,42 @@ fn camera_loop(commands: Receiver<CameraCommand>, events: SyncSender<CameraEvent
                         CameraFormat::new_from(1280, 720, fourcc, 30),
                     )),
                 );
-                if SyntheticSource::enabled() {
-                    camera = Some(Box::new(SyntheticSource::new()));
-                    preview_enabled = true;
-                    next_preview = Instant::now();
-                    publish_status(&events, CameraEvent::Status("Synthetic camera connected".into()), &wake);
-                    continue;
-                }
-                let opened = make_camera(FrameFormat::MJPEG)
+                make_camera(FrameFormat::MJPEG)
                     .or_else(|_| make_camera(FrameFormat::YUYV))
                     .or_else(|_| Camera::new(CameraIndex::Index(index),
-                        RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestResolution)));
-                match opened {
-                    Ok(mut opened) => match opened.open_stream() {
-                        Ok(()) => {
-                            camera = Some(Box::new(DeviceSource(opened, None)));
-                            preview_enabled = true;
-                            next_preview = Instant::now();
-                            publish_status(&events, CameraEvent::Status(format!("Camera {index} connected")), &wake);
-                        }
-                        Err(error) => publish_status(&events, CameraEvent::Error(format!("Camera stream: {error}")), &wake),
-                    },
-                    Err(error) => publish_status(&events, CameraEvent::Error(format!("Camera {index}: {error}")), &wake),
+                        RequestedFormat::new::<RgbFormat>(RequestedFormatType::AbsoluteHighestResolution)))
+                    .map_err(|error| format!("Camera {index}: {error}"))
+                    .and_then(|mut opened| match opened.open_stream() {
+                        Ok(()) => Ok((Box::new(DeviceSource(opened, None)) as Box<dyn FrameSource>, format!("Camera {index} connected"))),
+                        Err(error) => Err(format!("Camera stream: {error}")),
+                    })
+            };
+            match opened {
+                Ok((mut device, status)) => {
+                    if recorder.is_some() { device.keep_jpeg(true); }
+                    camera = Some(device);
+                    preview_enabled = true;
+                    next_preview = Instant::now();
+                    if let Some(since) = lost_since.take() {
+                        crate::log::info(format!("Camera back after {:.0} s", since.elapsed().as_secs_f32()));
+                    }
+                    publish_status(&events, CameraEvent::Status(status), &wake);
+                    publish_status(&events, CameraEvent::Connected, &wake);
+                }
+                Err(error) => {
+                    // Only the first failure is reported; later attempts stay silent (no UI wake-up).
+                    if first_try {
+                        // Same as a camera lost mid-event: pause screen, silent retries.
+                        publish_status(&events, CameraEvent::Lost(error.clone()), &wake);
+                        crate::log::info(format!("Camera unavailable, retrying: {error}"));
+                    }
+                    let since = *lost_since.get_or_insert_with(Instant::now);
+                    next_retry = Instant::now() + reconnect_delay(since.elapsed());
                 }
             }
+        }
+        match command {
+            Ok(CameraCommand::Start { .. }) => {}
             Ok(CameraCommand::Capture) => {
                 if let Some(device) = camera.as_mut() {
                     // Captures get a fresh buffer: they leave for the photo worker.
@@ -553,6 +617,8 @@ fn camera_loop(commands: Receiver<CameraCommand>, events: SyncSender<CameraEvent
             Ok(CameraCommand::Stop) => {
                 camera = None;
                 recorder = None;
+                wanted = None;
+                lost_since = None;
                 if let Ok(mut slot) = preview.lock() { *slot = None; }
                 publish_status(&events, CameraEvent::Status("Camera stopped".into()), &wake);
             }
@@ -562,7 +628,9 @@ fn camera_loop(commands: Receiver<CameraCommand>, events: SyncSender<CameraEvent
         if let Some(device) = camera.as_mut().filter(|_| sleeping && !preview_enabled && Instant::now() >= next_preview) {
             // Asleep: 4 decodes per second, nothing displayed, buffer reused.
             let buffer = spare.take().map(RgbaImage::into_raw).unwrap_or_default();
-            if let Ok(frame) = read_preview(device.as_mut(), buffer) {
+            let result = read_preview(device.as_mut(), buffer);
+            match &result { Ok(_) => read_failures = 0, Err(error) => { read_failures += 1; last_read_error.clone_from(error); } }
+            if let Ok(frame) = result {
                 if presence.observe(&frame, Instant::now()) {
                     publish_status(&events, CameraEvent::Motion, &wake);
                 }
@@ -574,7 +642,9 @@ fn camera_loop(commands: Receiver<CameraCommand>, events: SyncSender<CameraEvent
             // Reuse a buffer the UI has finished displaying, if one came back.
             let buffer = spare.take().or_else(|| recycled.try_iter().last())
                 .map(RgbaImage::into_raw).unwrap_or_default();
-            if let Ok(frame) = read_preview(device.as_mut(), buffer) {
+            let result = read_preview(device.as_mut(), buffer);
+            match &result { Ok(_) => read_failures = 0, Err(error) => { read_failures += 1; last_read_error.clone_from(error); } }
+            if let Ok(frame) = result {
                 let now = Instant::now();
                 if let Some(sink) = recorder.as_ref() {
                     // Every frame is recorded, moving or not (no motion gate).
@@ -602,6 +672,17 @@ fn camera_loop(commands: Receiver<CameraCommand>, events: SyncSender<CameraEvent
             // Schedule from the previous deadline, not from "now": decode time
             // must not stretch the period (30 fps stays 30 fps, not 27).
             next_preview = (next_preview + interval).max(Instant::now());
+        }
+        if camera.is_some() && read_failures >= LOST_AFTER_FAILURES {
+            // The camera stopped answering: drop it and reconnect in the background.
+            crate::log::info(format!("Camera lost ({last_read_error}); reconnecting"));
+            camera = None;
+            read_failures = 0;
+            if let Ok(mut slot) = preview.lock() { *slot = None; }
+            let now = Instant::now();
+            lost_since = Some(now);
+            next_retry = now + reconnect_delay(Duration::ZERO);
+            publish_status(&events, CameraEvent::Lost(last_read_error.clone()), &wake);
         }
     }
 }

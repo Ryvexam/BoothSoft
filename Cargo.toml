@@ -29,7 +29,7 @@ cpal = "0.15"
 nokhwa = { version = "0.10.11", default-features = false, features = ["input-native", "decoding"] }
 
 [target.'cfg(windows)'.dependencies]
-windows-sys = { version = "0.61", features = ["Win32_Graphics_Gdi", "Win32_Graphics_Printing", "Win32_Storage_Xps", "Win32_Globalization", "Win32_Foundation", "Win32_System_Registry"] }
+windows-sys = { version = "0.61", features = ["Win32_Graphics_Gdi", "Win32_Graphics_Printing", "Win32_Storage_Xps", "Win32_Globalization", "Win32_Storage_FileSystem", "Win32_Foundation", "Win32_System_Registry"] }
 
 [profile.release]
 # Prefer runtime throughput over a few megabytes of executable size.
@@ -49,5 +49,5 @@ opt-level = "z"
 
 # glibc keeps freed multi-MB image buffers in its heap (dynamic mmap threshold).
 # A fixed threshold returns every photo buffer to the OS once released.
-[target.'cfg(all(target_os = "linux", target_env = "gnu"))'.dependencies]
+[target.'cfg(unix)'.dependencies]
 libc = "0.2"

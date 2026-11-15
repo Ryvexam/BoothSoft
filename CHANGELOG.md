@@ -1,3 +1,10 @@
+## [Unreleased]
+
+### Added
+- Camera self-repair: a camera that stops answering (cable, battery, power) is reconnected in the background (every 2 s, then 5 s); the pause screen has no button any more and goes back to the live view by itself.
+- Disk guard: warning under 5 GB free, no new session under 500 MB (calm message for guests); stored events listed with their size in Data & export, deletable with confirmation.
+- Guest book switch on its own maintenance page; version shown next to "Maintenance".
+
 ## [0.17.0] - 2026-11-15
 
 ### Added

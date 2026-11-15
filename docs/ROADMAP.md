@@ -108,8 +108,8 @@ qui peut faire échouer une soirée, puis la fluidité, puis les fonctions.
 
 | # | Chantier | Priorité | Effort | Gain principal |
 | --- | --- | --- | --- | --- |
-| Z1 | Gardien : relance automatique, mode sans échec, redémarrage nocturne | **P0** | M | L'application ne reste jamais plantée |
-| Z2 | Caméra auto-réparatrice (reconnexion, repli webcam, exposition) | **P0** | M | Toujours une image |
+| Z1 | ✅ Gardien : relance automatique, mode sans échec, redémarrage nocturne (reste : réglages Windows) | **P0** | M | L'application ne reste jamais plantée |
+| Z2 | ◐ Caméra auto-réparatrice (reconnexion : fait ; repli webcam, exposition : à faire) | **P0** | M | Toujours une image |
 | Z3 | Impression auto-gérée (file relancée, mode sans tirage, rattrapage) | **P0** | L | Aucune confirmation ni déblocage manuel |
 | Z4 | Guidage à l'écran de la personne sur place | **P0** | M | Le client règle seul papier, câble, allumage |
 | Z5 | Données auto-protégées (réglages, disque, horloge, coupure de courant) | **P0** | M | Rien ne se perd, rien ne se bloque |
@@ -117,9 +117,9 @@ qui peut faire échouer une soirée, puis la fluidité, puis les fonctions.
 | E1 | Mise en page pour l'écran 15,6" (image 3:2 entière, commandes sur les côtés) | P1 | M | Ce qu'on voit est ce qui s'imprime |
 | V1 | Mesures sur le vrai PC de la borne | P0 | S | Sait-on vraiment où on en est |
 | V2 | Valider la version Windows (OpenGL, démarrage auto, impression) | P0 | M | La borne fonctionne sur sa machine |
-| B1 | Caméra débranchée / rebranchée, reprise automatique | P0 | M | Pas d'intervention pendant la soirée |
-| B2 | Journal sur disque et écran d'erreur utile | P0 | S | Diagnostic après coup |
-| B4 | Garde disque plein et nettoyage des anciens événements | P0 | S | 256 Go ne se remplissent pas en silence |
+| B1 | ✅ Caméra débranchée / rebranchée, reprise automatique | P0 | M | Pas d'intervention pendant la soirée |
+| B2 | ✅ Journal sur disque et écran d'erreur utile (reste : export ZIP des journaux) | P0 | S | Diagnostic après coup |
+| B4 | ✅ Garde disque plein et nettoyage des anciens événements (reste : suppression automatique après N jours) | P0 | S | 256 Go ne se remplissent pas en silence |
 | A1 | **Canon EOS 2000D en USB** : visée, déclenchement, photo | **P0** | L | L'appareil de la borne fonctionne ; tirages nets |
 | A2 | Webcam : photo en pleine résolution (secours) | P3 | M | Qualité en mode de secours |
 | B3 | Suivi réel des impressions (file d'attente du système) | P1 | L | Plus de confirmation manuelle |
@@ -134,7 +134,7 @@ qui peut faire échouer une soirée, puis la fluidité, puis les fonctions.
 | K1 | Clavier tactile de la maintenance (`docs/specs/TOUCH_KEYBOARD.md`) | P1 | M | Saisir un nom ou un texte sur la borne, sans clavier |
 | T1 | Éditeur du thème de l'entreprise : couleurs, logo, accueil, textes (`docs/specs/THEME_EDITOR.md`) | P2 | L (4 lots) | Adapter l'habillage sans autre logiciel |
 | G1 | ✅ **Livre d'or vidéo** (à débloquer, fait : G1.1–G1.5) : message vidéo avec le son, 30 s au plus, pour l'organisateur (`docs/specs/GUEST_BOOK.md`) | P2 | XL (5 lots) | Option vendable, souvenir qui manque aux photos |
-| L1 | **Système de langues** : anglais par défaut, français, espagnol, chinois (`docs/specs/LANGUAGES.md`) | P2 | XL (5 lots) | Projet utilisable hors de France |
+| L1 | ◐ **Système de langues** : anglais par défaut et français faits ; espagnol, chinois (`docs/specs/LANGUAGES.md`) | P2 | XL (5 lots) | Projet utilisable hors de France |
 | C3 | Réglages par événement (tirages prévus, exemplaires, rafale, limite de séances) | P2 | M | « La borne s'allume, tout est prêt » |
 | C1 | GIF / boomerang depuis la rafale | P3 | M | Parité de modes |
 | C5 | Bilan d'événement et export USB | P3 | S | Livraison au client |
@@ -208,6 +208,17 @@ jusqu'à ce que quelqu'un intervienne. Rien ne surveille l'application.
 photo perdue. Figer l'application (test intégré) : même résultat. 0 % CPU pour le gardien.
 
 ### Z2 — Caméra auto-réparatrice (P0, M) — remplace B1
+
+> **Statut (15/11/2026) : reconnexion faite.** `src/camera.rs` : après 15 lectures
+> ratées (≈ 0,5 s) ou un échec d'ouverture, la caméra est déclarée perdue
+> (`CameraEvent::Lost`) ; le fil caméra retente seul toutes les 2 s pendant 30 s, puis
+> toutes les 5 s, sans réveiller l'interface ; `CameraEvent::Connected` ramène au live.
+> L'écran « L'appareil photo fait une pause » n'a plus de bouton : il affiche
+> « Reconnexion… N s » (1 rafraîchissement par seconde, ≈ 2 % CPU mesuré). Une séance
+> en cours est abandonnée proprement (photos déjà prises gardées), un message du livre
+> d'or en cours aussi. Test : `BOOTHSOFT_SYNTHETIC_UNPLUG=5-14` débranche la caméra
+> simulée entre 5 et 14 s : retour au live seul en 11 s. **Reste** : repli webcam,
+> chien de garde d'image figée, exposition, mise au point (avec le Canon, A1).
 
 **À faire** (en plus de la fiche A1).
 - Reconnexion sans fin : toutes les 2 s, puis 5 s, sans réveiller l'interface.
@@ -405,6 +416,13 @@ mélangent anglais et français.
 Coût : 0 % CPU au repos, < 1 Mo de RAM.
 
 ### B4 — Disque plein et nettoyage (P0, S)
+
+> **Statut (15/11/2026) : fait.** `src/disk.rs` : espace libre lu à chaque début de
+> séance (un appel système) et à l'ouverture de la maintenance. Sous 5 Go : alerte
+> orange en Vue d'ensemble et Données ; sous 500 Mo : plus de nouvelle séance, message
+> calme aux invités (« La borne fait une pause : sa mémoire est pleine. »). Données ›
+> Événements enregistrés : taille de chaque événement, suppression avec confirmation
+> (jamais l'événement en cours). **Reste** : suppression automatique après N jours.
 
 **Constat.** Chaque photo est écrite deux fois (originale + version cadre). Rien ne
 vérifie l'espace libre ni ne supprime les vieux événements. Une rafale de 10 pèse environ 5 à 8 Mo (estimé).
