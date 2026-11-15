@@ -134,7 +134,7 @@ def balloon(img, cx, cy, r, color, string_color, seed):
 # --------------------------------------------------------------------------- themes
 
 
-def party(out, band_text="QUE LA FÊTE COMMENCE !"):
+def party(out, band_text="PARTY TIME!"):
     plum, night, pink, yellow, teal, orange, cream = '#2A1B47', '#1A1030', '#F0477D', '#FFC857', '#3DD6C4', '#FF8A4C', '#FFF6EC'
     W, H = BG_W * SS, BG_H * SS
     bg = vgradient(W, H, '#2D1D4D', night)
@@ -186,8 +186,9 @@ def party(out, band_text="QUE LA FÊTE COMMENCE !"):
 
 def default(out):
     """The bundled theme, shown as "Party": generic and festive, no brand, no occasion."""
-    party(out, band_text="QUE LA FÊTE COMMENCE !")
-    party_portrait(out, ["QUE LA FÊTE", "COMMENCE !"])
+    # Band texts in English (the default language), understood everywhere.
+    party(out, band_text="PARTY TIME!")
+    party_portrait(out, ["LET'S", "CELEBRATE!"])
 
 
 # Portrait print (4 x 6 in): same paper turned. The photo window matches the

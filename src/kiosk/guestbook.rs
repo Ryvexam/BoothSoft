@@ -5,6 +5,7 @@
 //! [`GuestBook::mic`] exists, i.e. on the test and recording screens.
 use super::{ui, Kiosk, WAKE};
 use super::ui::{Icon, Kind, Palette};
+use boothsoft::tr;
 use boothsoft::{audio::{self, MicStream}, camera::CameraCommand, effects::PhotoFilter,
     guestbook::{self, Message, Player, RecordResult, Recording}, model::Screen};
 use eframe::egui::{self, Align2, Color32, CornerRadius, Pos2, Rect, Stroke, Vec2};
@@ -60,10 +61,10 @@ impl GuestBook {
 
     fn feedback(&self, now: Instant) -> (&'static str, bool) {
         let recent = |t: Option<Instant>| t.is_some_and(|t| now.duration_since(t) < Duration::from_secs(2));
-        if self.clips.len() >= 3 { ("Un peu moins fort, c’est parfait.", true) }
-        else if recent(self.heard_at) { ("On vous entend bien !", true) }
-        else if !recent(self.sound_at) { ("Nous ne vous entendons pas encore : parlez près de l’écran.", false) }
-        else { ("Parlez un peu plus fort…", false) }
+        if self.clips.len() >= 3 { (tr!(fr: "Un peu moins fort, c’est parfait.", en: "A little softer, that’s perfect."), true) }
+        else if recent(self.heard_at) { (tr!(fr: "On vous entend bien !", en: "We can hear you well!"), true) }
+        else if !recent(self.sound_at) { (tr!(fr: "Nous ne vous entendons pas encore : parlez près de l’écran.", en: "We can’t hear you yet: speak close to the screen."), false) }
+        else { (tr!(fr: "Parlez un peu plus fort…", en: "Speak a little louder…"), false) }
     }
 }
 
@@ -146,7 +147,7 @@ impl Kiosk {
 
         // Title and back button.
         let top = rect.top() + 64.0 * scale;
-        painter.text(Pos2::new(rect.center().x, top), Align2::CENTER_CENTER, format!("Un message pour {recipient}"), ui::display(38.0 * scale), pal.primary);
+        painter.text(Pos2::new(rect.center().x, top), Align2::CENTER_CENTER, tr!(fr: format!("Un message pour {recipient}"), en: format!("A message for {recipient}")), ui::display(38.0 * scale), pal.primary);
         let back = Rect::from_center_size(Pos2::new(rect.left() + 62.0 * scale, top), Vec2::splat(58.0 * scale));
         if ui::button(ui, back, "gb-back", "", Some(Icon::Close), Kind::Glass, &pal) {
             self.enter_ready();
@@ -163,12 +164,12 @@ impl Kiosk {
         // Meter column on the right.
         let col = Rect::from_min_max(Pos2::new(live.right() + 48.0 * scale, live.top()), Pos2::new(rect.right() - 56.0 * scale, live.bottom()));
         let mut y = col.top() + 20.0 * scale;
-        painter.text(Pos2::new(col.left(), y), Align2::LEFT_TOP, "Dites quelque chose !", ui::display(34.0 * scale), pal.fg);
+        painter.text(Pos2::new(col.left(), y), Align2::LEFT_TOP, tr!(fr: "Dites quelque chose !", en: "Say something!"), ui::display(34.0 * scale), pal.fg);
         y += 70.0 * scale;
         let gb = self.guestbook.as_ref();
         let highlight = if failed {
             ui::icon(&painter, Pos2::new(col.left() + 22.0 * scale, y + 22.0 * scale), 40.0 * scale, ui::alpha(pal.fg, 150), Icon::Mic);
-            painter.text(Pos2::new(col.left() + 60.0 * scale, y + 22.0 * scale), Align2::LEFT_CENTER, "Le micro ne répond pas.", ui::bold(22.0 * scale), pal.fg);
+            painter.text(Pos2::new(col.left() + 60.0 * scale, y + 22.0 * scale), Align2::LEFT_CENTER, tr!(fr: "Le micro ne répond pas.", en: "The microphone is not responding."), ui::bold(22.0 * scale), pal.fg);
             false
         } else {
             ui::icon(&painter, Pos2::new(col.left() + 20.0 * scale, y + 22.0 * scale), 40.0 * scale, pal.accent, Icon::Mic);
@@ -182,10 +183,10 @@ impl Kiosk {
 
         // Privacy notice (D10) and the main button.
         let max = self.storage.settings.guestbook_max_seconds;
-        let notice = format!("Votre message vidéo ({max} s au plus) sera enregistré et remis à {recipient}.");
+        let notice = tr!(fr: format!("Votre message vidéo ({max} s au plus) sera enregistré et remis à {recipient}."), en: format!("Your video message ({max} s max) will be recorded and given to {recipient}."));
         let galley = painter.layout(notice, ui::body(19.0 * scale), ui::alpha(pal.fg, 220), rect.width() - 112.0 * scale);
         painter.galley(Pos2::new(rect.left() + 56.0 * scale, live.bottom() + 30.0 * scale), galley, pal.fg);
-        let label = if failed { "Enregistrer sans le son" } else { "Commencer l’enregistrement" };
+        let label = if failed { tr!(fr: "Enregistrer sans le son", en: "Record without sound") } else { tr!(fr: "Commencer l’enregistrement", en: "Start recording") };
         let height = 80.0 * scale;
         let w = ui::button_width(ui, label, height, true).max(340.0 * scale);
         let button = Rect::from_min_size(Pos2::new(rect.right() - 56.0 * scale - w, rect.bottom() - 48.0 * scale - height), Vec2::new(w, height))
@@ -236,7 +237,7 @@ impl Kiosk {
         boothsoft::log::info(format!("Guest book: message lost: {error}"));
         self.camera.send(CameraCommand::Record(None));
         self.enter_ready();
-        self.notice = Some(("Le message n’a pas pu être enregistré.".into(), Instant::now()));
+        self.notice = Some((tr!(fr: "Le message n’a pas pu être enregistré.", en: "The message could not be recorded.").into(), Instant::now()));
     }
 
     pub(super) fn render_recording(&mut self, ui: &mut egui::Ui, ctx: &egui::Context) {
@@ -278,7 +279,7 @@ impl Kiosk {
             painter.circle_filled(center, radius, Color32::from_black_alpha(95));
             if let Some(texture) = self.numeral.get(ctx, &n.to_string(), radius * 1.45) { ui::numeral(&painter, texture, center, 1.0); }
             ui::shadowed_text(&painter, center + Vec2::new(0.0, radius + 50.0 * scale), Align2::CENTER_CENTER,
-                "Regardez l’écran et parlez !", ui::bold(28.0 * scale), Color32::WHITE);
+                tr!(fr: "Regardez l’écran et parlez !", en: "Look at the screen and talk!"), ui::bold(28.0 * scale), Color32::WHITE);
             ctx.request_repaint_after(Duration::from_millis(1_000 - u64::from(left.subsec_millis()) % 1_000).min(left.max(Duration::from_millis(16))));
             return;
         }
@@ -307,7 +308,7 @@ impl Kiosk {
         painter.circle_filled(center, radius * 0.72, core);
         painter.rect_filled(Rect::from_center_size(center - Vec2::new(0.0, 8.0 * scale), Vec2::splat(radius * 0.42)), CornerRadius::same(4), Color32::WHITE);
         painter.text(center + Vec2::new(0.0, radius * 0.34), Align2::CENTER_CENTER, format!("0:{:02}", left.min(59)), ui::bold(17.0 * scale), Color32::WHITE);
-        let caption = if stopping { "C’est dans la boîte !" } else { "Terminer" };
+        let caption = if stopping { tr!(fr: "C’est dans la boîte !", en: "That’s a wrap!") } else { tr!(fr: "Terminer", en: "Finish") };
         ui::shadowed_text(&painter, center + Vec2::new(0.0, radius + 34.0 * scale), Align2::CENTER_CENTER, caption, ui::bold(19.0 * scale), Color32::WHITE);
         if response.clicked() && can_stop { self.stop_recording(); }
 
@@ -388,9 +389,9 @@ impl Kiosk {
         let cy = bar.center().y;
         let height = 76.0 * scale;
         let gap = 14.0 * scale;
-        let mut actions = vec![("Garder", Icon::Check, Kind::Primary, "gb-keep")];
-        if finished { actions.push(("Revoir", Icon::Play, Kind::Glass, "gb-replay")); }
-        actions.push(("Recommencer", Icon::Retake, Kind::Glass, "gb-redo"));
+        let mut actions = vec![(tr!(fr: "Garder", en: "Keep"), Icon::Check, Kind::Primary, "gb-keep")];
+        if finished { actions.push((tr!(fr: "Revoir", en: "Replay"), Icon::Play, Kind::Glass, "gb-replay")); }
+        actions.push((tr!(fr: "Recommencer", en: "Record again"), Icon::Retake, Kind::Glass, "gb-redo"));
         let mut right = bar.right();
         let mut pressed = None;
         for (label, icon, kind, id) in actions {
@@ -404,10 +405,10 @@ impl Kiosk {
         let left = timeout.saturating_sub(self.last_touch.elapsed());
         let title_w = right - bar.left();
         if title_w > 200.0 * scale {
-            let title = painter.layout_no_wrap("Votre message".into(), ui::display(38.0 * scale), Color32::WHITE);
+            let title = painter.layout_no_wrap(tr!(fr: "Votre message", en: "Your message").into(), ui::display(38.0 * scale), Color32::WHITE);
             let th = title.size().y;
             painter.galley(Pos2::new(bar.left(), cy - th / 2.0 - 14.0 * scale), title, Color32::WHITE);
-            let sub = format!("Gardé automatiquement dans {} s", left.as_secs() + 1);
+            let sub = tr!(fr: format!("Gardé automatiquement dans {} s", left.as_secs() + 1), en: format!("Kept automatically in {} s", left.as_secs() + 1));
             painter.text(Pos2::new(bar.left(), cy + th / 2.0 - 4.0 * scale), Align2::LEFT_CENTER, sub, ui::body(18.0 * scale), Color32::from_white_alpha(210));
         }
         match pressed {

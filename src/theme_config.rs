@@ -44,12 +44,50 @@ pub struct Assets {
     pub background: Option<String>,
 }
 
-#[derive(Debug, Clone, Deserialize)]
+/// Guest-facing texts of a theme, all optional (application defaults in the
+/// current language). `[ui]` is written in `language` (absent: valid in every
+/// language); `[ui.en]`, `[ui.fr]` override it per language.
+#[derive(Debug, Clone, Default, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct Labels {
-    pub shutter_label: String,
-    pub retake_label: String,
-    pub finish_label: String,
+    #[serde(default)]
+    pub language: Option<String>,
+    #[serde(default)]
+    pub shutter_label: Option<String>,
+    #[serde(default)]
+    pub retake_label: Option<String>,
+    #[serde(default)]
+    pub finish_label: Option<String>,
+    #[serde(default)]
+    pub print_label: Option<String>,
+    #[serde(default)]
+    pub start_label: Option<String>,
+    #[serde(default)]
+    pub welcome_eyebrow: Option<String>,
+    #[serde(default)]
+    pub welcome_title: Option<String>,
+    #[serde(default)]
+    pub welcome_subtitle: Option<String>,
+    #[serde(default)]
+    pub thanks_title: Option<String>,
+    #[serde(default)]
+    pub thanks_subtitle: Option<String>,
+    #[serde(default)]
+    pub en: Option<LabelSet>,
+    #[serde(default)]
+    pub fr: Option<LabelSet>,
+}
+
+/// Texts of one language section (`[ui.en]`, `[ui.fr]`).
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct LabelSet {
+    #[serde(default)]
+    pub shutter_label: Option<String>,
+    #[serde(default)]
+    pub retake_label: Option<String>,
+    #[serde(default)]
+    pub finish_label: Option<String>,
     #[serde(default)]
     pub print_label: Option<String>,
     #[serde(default)]
@@ -66,14 +104,39 @@ pub struct Labels {
     pub thanks_subtitle: Option<String>,
 }
 
+macro_rules! label {
+    ($(#[$doc:meta])* $name:ident, $field:ident, fr: $fr:expr, en: $en:expr) => {
+        $(#[$doc])*
+        pub fn $name(&self) -> &str {
+            self.resolve(|set| set.$field.as_deref(), self.$field.as_deref(), $fr, $en)
+        }
+    };
+}
+
 impl Labels {
-    pub fn print(&self) -> &str { self.print_label.as_deref().unwrap_or("Imprimer") }
-    pub fn start(&self) -> &str { self.start_label.as_deref().unwrap_or("Commencer") }
-    pub fn welcome_eyebrow(&self) -> &str { self.welcome_eyebrow.as_deref().unwrap_or("Photobooth") }
-    pub fn welcome_title(&self) -> &str { self.welcome_title.as_deref().unwrap_or("Souriez,\nvous êtes\nmagnifiques") }
-    pub fn welcome_subtitle(&self) -> &str { self.welcome_subtitle.as_deref().unwrap_or("Touchez l’écran pour prendre votre photo.") }
-    pub fn thanks_title(&self) -> &str { self.thanks_title.as_deref().unwrap_or("Merci !") }
-    pub fn thanks_subtitle(&self) -> &str { self.thanks_subtitle.as_deref().unwrap_or("À tout de suite pour la prochaine photo.") }
+    /// `[ui.<lang>]`, then `[ui]` when it is written in the current language
+    /// (or declares none), then the application's default text.
+    fn resolve<'a>(&'a self, section: impl Fn(&'a LabelSet) -> Option<&'a str>, base: Option<&'a str>,
+                   fr: &'static str, en: &'static str) -> &'a str {
+        use crate::i18n::Lang;
+        let lang = crate::i18n::lang();
+        let set = match lang { Lang::En => self.en.as_ref(), Lang::Fr => self.fr.as_ref() };
+        if let Some(text) = set.and_then(section) { return text; }
+        let base_matches = self.language.as_deref().is_none_or(|l| Lang::from_locale(l) == Some(lang));
+        if let Some(text) = base.filter(|_| base_matches) { return text; }
+        match lang { Lang::Fr => fr, Lang::En => en }
+    }
+
+    label!(shutter, shutter_label, fr: "Prendre la photo", en: "Take the photo");
+    label!(retake, retake_label, fr: "Reprendre", en: "Retake");
+    label!(finish, finish_label, fr: "Terminer", en: "Done");
+    label!(print, print_label, fr: "Imprimer", en: "Print");
+    label!(start, start_label, fr: "Commencer", en: "Start");
+    label!(welcome_eyebrow, welcome_eyebrow, fr: "Photobooth", en: "Photobooth");
+    label!(welcome_title, welcome_title, fr: "Souriez,\nvous êtes\nmagnifiques", en: "Smile,\nyou look\namazing");
+    label!(welcome_subtitle, welcome_subtitle, fr: "Touchez l’écran pour prendre votre photo.", en: "Touch the screen to take your photo.");
+    label!(thanks_title, thanks_title, fr: "Merci !", en: "Thank you!");
+    label!(thanks_subtitle, thanks_subtitle, fr: "À tout de suite pour la prochaine photo.", en: "See you soon for the next photo.");
 }
 
 #[derive(Debug, Clone)]
@@ -184,16 +247,25 @@ pub fn load(themes_root: &Path, theme_id: &str) -> io::Result<LoadedTheme> {
     let config: Config = toml::from_str(&data).map_err(|error| io::Error::new(io::ErrorKind::InvalidData, error))?;
     if config.schema_version != 1 { return Err(invalid("Unsupported theme schema version")); }
     validate_text(&config.name, 80)?;
-    for label in [&config.ui.shutter_label, &config.ui.retake_label, &config.ui.finish_label] {
-        validate_text(label, 40)?;
+    let ui = &config.ui;
+    if let Some(language) = ui.language.as_deref() {
+        if crate::i18n::Lang::from_locale(language).is_none() { return Err(invalid("Unknown [ui] language")); }
     }
-    for label in [&config.ui.print_label, &config.ui.start_label, &config.ui.welcome_eyebrow].into_iter().flatten() {
-        validate_text(label, 40)?;
-    }
-    // Long guest-facing texts may contain explicit line breaks, but no other control characters.
-    for text in [&config.ui.welcome_title, &config.ui.welcome_subtitle,
-                 &config.ui.thanks_title, &config.ui.thanks_subtitle].into_iter().flatten() {
-        validate_text(&text.replace('\n', " "), 140)?;
+    let sets = [Some(LabelSet {
+        shutter_label: ui.shutter_label.clone(), retake_label: ui.retake_label.clone(), finish_label: ui.finish_label.clone(),
+        print_label: ui.print_label.clone(), start_label: ui.start_label.clone(), welcome_eyebrow: ui.welcome_eyebrow.clone(),
+        welcome_title: ui.welcome_title.clone(), welcome_subtitle: ui.welcome_subtitle.clone(),
+        thanks_title: ui.thanks_title.clone(), thanks_subtitle: ui.thanks_subtitle.clone(),
+    }), ui.en.clone(), ui.fr.clone()];
+    for set in sets.iter().flatten() {
+        for label in [&set.shutter_label, &set.retake_label, &set.finish_label, &set.print_label, &set.start_label, &set.welcome_eyebrow]
+            .into_iter().flatten() {
+            validate_text(label, 40)?;
+        }
+        // Long guest-facing texts may contain explicit line breaks, but no other control characters.
+        for text in [&set.welcome_title, &set.welcome_subtitle, &set.thanks_title, &set.thanks_subtitle].into_iter().flatten() {
+            validate_text(&text.replace('\n', " "), 140)?;
+        }
     }
     for color in [&config.colors.background, &config.colors.foreground, &config.colors.primary,
                   &config.colors.accent, &config.colors.surface, &config.colors.muted] {

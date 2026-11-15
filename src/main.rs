@@ -79,6 +79,10 @@ fn main() -> eframe::Result {
         cli_theme = Some("default".into());
         std::env::set_var("BOOTHSOFT_LIVE_CPU", "1");
     }
+    let lang = storage.settings.language.resolve();
+    boothsoft::i18n::set(lang);
+    boothsoft::log::info(format!("Language: {} (setting {:?}, system {:?})", lang.code(), storage.settings.language,
+        boothsoft::i18n::system().map(boothsoft::i18n::Lang::code)));
     if demo { storage.settings.demo_mode = true; }
     if windowed { storage.settings.fullscreen = false; }
     // Explicit command-line themes are strict. A removed saved theme falls back

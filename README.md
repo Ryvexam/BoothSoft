@@ -36,9 +36,10 @@ No cloud, no subscription, no operator — on a modest mini-PC.
 ---
 
 > [!NOTE]
-> The interface is currently in **French** (that is what the screenshots show).
-> A language system — English by default, plus French, Spanish and Chinese — is on the
-> [roadmap](docs/specs/LANGUAGES.md).
+> The interface speaks **English** and **French**. It follows the computer's language
+> (English when the computer uses another one) and can be fixed in maintenance.
+> The screenshots show the French interface. Spanish and Chinese are planned
+> ([spec](docs/specs/LANGUAGES.md)).
 
 ## ✨ Why BoothSoft
 
@@ -225,7 +226,8 @@ BoothSoft is young (version 0.16). Before you rely on it for a real event:
 - [ ] Built-in theme editor and on-screen keyboard
 - [x] Portrait prints with their own frame
 - [x] Video guest book (optional): a 30-second message with sound for the hosts
-- [ ] Languages: English (default), French, Spanish, Chinese
+- [x] Languages: English (default) and French, following the computer's language
+- [ ] More languages: Spanish, Chinese
 - [ ] Automatic print-queue tracking (today a sent print stays “to check” until confirmed in maintenance)
 - [ ] DSLR / mirrorless support — relies on manufacturer SDKs that cannot be redistributed;
       the code will expose an extension point so you can add it at home

@@ -1,6 +1,7 @@
 ## [0.17.0] - 2026-11-15
 
 ### Added
+- Interface in English and French, following the computer's language (English otherwise); can be fixed in maintenance. Themes can give their texts per language (`[ui.en]`, `[ui.fr]`). Party frames now say "PARTY TIME!".
 - Video guest book (unlocked in maintenance): microphone test with a live level meter, 3 s countdown, 2–30 s video message with sound, playback, keep or record again, thank-you screen. AVI (MJPEG + PCM 48 kHz) written without re-encoding (`src/avi.rs`), crash repair of `.part` files, `cpal` audio (`src/audio.rs`), maintenance page to play, delete and export messages.
 - Portrait 10×15 prints: orientation Landscape / Portrait / guests' choice, Party portrait frame, frame PNG import with 3 previous frames kept, photo placed in the frame's transparent window (detected automatically), live crop guide on that window.
 - Clear return to the live view after a photo: visible countdown on the review and thank-you screens (review auto-return 30 s by default, migrated from 90 s).

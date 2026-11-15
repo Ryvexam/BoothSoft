@@ -19,6 +19,7 @@ mod live_gl;
 mod ui;
 
 use ui::{Icon, Kind, Palette};
+use boothsoft::tr;
 
 const COUNTDOWN_SECONDS: u64 = 7;
 /// Worker wake-up: one repaint (see `Kiosk::new`).
@@ -72,7 +73,7 @@ impl Burst {
 /// The review screen shows its "back to live" countdown (one repaint a
 /// second) during this final window; with the default 30 s it is always on.
 const REVIEW_HINT: Duration = Duration::from_secs(30);
-const REVIEW_TITLES: [&str; 5] = ["Magnifique !", "Superbe !", "Quelle allure !", "Parfait !", "Sublime !"];
+const REVIEW_TITLES: [(&str, &str); 5] = [("Magnifique !", "Gorgeous!"), ("Superbe !", "Superb!"), ("Quelle allure !", "Looking sharp!"), ("Parfait !", "Perfect!"), ("Sublime !", "Stunning!")];
 
 /// What the shutter does on the live view.
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -314,7 +315,7 @@ impl Kiosk {
         if self.storage.settings.session_limit > 0
             && event_sessions as u32 >= self.storage.settings.session_limit {
             self.status = "Session limit reached".into();
-            self.notice = Some(("La borne fait une pause : le nombre de photos prévu est atteint.".into(), Instant::now()));
+            self.notice = Some((tr!(fr: "La borne fait une pause : le nombre de photos prévu est atteint.", en: "The booth is taking a break: the planned number of photos has been reached.").into(), Instant::now()));
             return;
         }
         match self.storage.new_session() {
@@ -484,7 +485,7 @@ impl Kiosk {
             return Err("Printing disabled by administrator".into());
         }
         let Some(printer_name) = self.resolve_printer() else {
-            return Err("Aucune imprimante détectée : branchez-la puis réessayez".into());
+            return Err(tr!(fr: "Aucune imprimante détectée : branchez-la puis réessayez", en: "No printer found: plug it in and try again").into());
         };
         let reservation_id = self.print_event();
         self.print_seq = self.print_seq.wrapping_add(1);
@@ -683,11 +684,11 @@ impl Kiosk {
     }
 
     pub(super) fn renderer_summary(&self) -> String {
-        if self.renderer.is_empty() { return "Rendu : inconnu".into(); }
+        if self.renderer.is_empty() { return tr!(fr: "Rendu : inconnu", en: "Renderer: unknown").into(); }
         if self.software_renderer() {
-            format!("Rendu : logiciel, sans GPU ({}). Conseil : 15-20 images/s pour le live.", self.renderer)
+            tr!(fr: format!("Rendu : logiciel, sans GPU ({}). Conseil : 15-20 images/s pour le live.", self.renderer), en: format!("Renderer: software, no GPU ({}). Tip: 15-20 fps for the live view.", self.renderer))
         } else {
-            format!("Rendu : GPU ({})", self.renderer)
+            tr!(fr: format!("Rendu : GPU ({})", self.renderer), en: format!("Renderer: GPU ({})", self.renderer))
         }
     }
 
@@ -724,7 +725,7 @@ impl Kiosk {
     fn event_label(&self) -> Option<String> {
         let event = self.current_event();
         let name = event.name.trim();
-        (!name.is_empty() && name != "Votre événement").then(|| name.to_owned())
+        (!name.is_empty() && name != "Votre événement" && name != "Your event").then(|| name.to_owned())
     }
 
     fn render_welcome(&mut self, ui: &mut egui::Ui) {
@@ -743,7 +744,7 @@ impl Kiosk {
         let mut chip_right = rect.right() - 56.0 * scale;
         if let Some((left, maximum)) = self.prints_left() {
             let low = left == 0 || left * 10 <= maximum;
-            let text = match left { 0 => "Plus de tirages".to_owned(), 1 => "1 tirage restant".to_owned(), n => format!("{n} tirages restants") };
+            let text = match left { 0 => tr!(fr: "Plus de tirages", en: "No prints left").to_owned(), 1 => tr!(fr: "1 tirage restant", en: "1 print left").to_owned(), n => tr!(fr: format!("{n} tirages restants"), en: format!("{n} prints left")) };
             let color = if low { pal.on_accent } else { pal.fg };
             let galley = painter.layout_no_wrap(text, ui::bold(15.0 * scale), color);
             let chip = Align2::RIGHT_CENTER.anchor_size(Pos2::new(chip_right, chip_y), galley.size() + Vec2::new(46.0, 18.0) * scale);
@@ -764,7 +765,7 @@ impl Kiosk {
         let mut y = rect.top() + rect.height() * 0.25;
         let eyebrow = labels.as_ref().map_or("Photobooth", |l| l.welcome_eyebrow());
         y = painter.text(Pos2::new(left, y), Align2::LEFT_TOP, ui::eyebrow(eyebrow), ui::bold(16.0 * scale), pal.accent).bottom() + 18.0 * scale;
-        let title = labels.as_ref().map_or("Souriez !", |l| l.welcome_title());
+        let title = labels.as_ref().map_or(tr!(fr: "Souriez !", en: "Smile!"), |l| l.welcome_title());
         let galley = painter.layout(title.to_owned(), ui::display(72.0 * scale), pal.primary, column);
         let title_height = galley.size().y;
         painter.galley(Pos2::new(left, y), galley, pal.primary);
@@ -774,7 +775,7 @@ impl Kiosk {
         let sub_height = galley.size().y;
         painter.galley(Pos2::new(left, y), galley, ui::alpha(pal.fg, 210));
         y += sub_height + 40.0 * scale;
-        let start = labels.as_ref().map_or("Commencer", |l| l.start());
+        let start = labels.as_ref().map_or(tr!(fr: "Commencer", en: "Start"), |l| l.start());
         let height = 84.0 * scale;
         let cta = Rect::from_min_size(Pos2::new(left, y), Vec2::new(ui::button_width(ui, start, height, true), height));
         // The entire screen is a start target; the button gives it an obvious place.
@@ -817,7 +818,7 @@ impl Kiosk {
             None => {
                 ui::icon(painter, rect.center() - Vec2::new(0.0, 30.0), 64.0, Color32::from_white_alpha(160), Icon::Camera);
                 painter.text(rect.center() + Vec2::new(0.0, 40.0), Align2::CENTER_CENTER,
-                    "Connexion à l’appareil photo…", ui::body(22.0), Color32::from_white_alpha(200));
+                    tr!(fr: "Connexion à l’appareil photo…", en: "Connecting to the camera…"), ui::body(22.0), Color32::from_white_alpha(200));
             }
         }
         false
@@ -915,8 +916,8 @@ impl Kiosk {
             self.paint_mode_switch(ui, &painter, rect.translate(Vec2::new(0.0, -slide)), scale, &pal);
         } else {
             let hint = match self.shot_progress() {
-                Some((current, total)) => format!("Photo {current} / {total}  ·  Placez-vous dans le cadre"),
-                None => "Placez-vous dans le cadre".to_owned(),
+                Some((current, total)) => tr!(fr: format!("Photo {current} / {total}  ·  Placez-vous dans le cadre"), en: format!("Photo {current} of {total}  ·  Step into the frame")),
+                None => tr!(fr: "Placez-vous dans le cadre", en: "Step into the frame").to_owned(),
             };
             ui::shadowed_text(&painter, Pos2::new(rect.center().x, rect.top() + 61.0 * scale), Align2::CENTER_CENTER,
                 &hint, ui::bold(22.0 * scale), Color32::WHITE);
@@ -936,17 +937,17 @@ impl Kiosk {
         let shutter_center = Pos2::new(rect.center().x, rect.bottom() - 112.0 * scale + slide);
         if self.guest_mode == GuestMode::GuestBook {
             // No filters in video: the shutter opens the microphone test.
-            ui::shadowed_text(&painter, shutter_center + Vec2::new(0.0, 84.0 * scale), Align2::CENTER_CENTER, "Laisser un message", ui::bold(18.0 * scale), Color32::WHITE);
+            ui::shadowed_text(&painter, shutter_center + Vec2::new(0.0, 84.0 * scale), Align2::CENTER_CENTER, tr!(fr: "Laisser un message", en: "Leave a message"), ui::bold(18.0 * scale), Color32::WHITE);
             if ui::shutter_with(ui, shutter_center, 60.0 * scale, &pal, Icon::Mic) { self.open_mic_check(); }
         } else {
-            let label = theme::active().map_or_else(|| "Prendre la photo".to_owned(), |t| t.config.ui.shutter_label.clone());
+            let label = theme::active().map_or_else(|| tr!(fr: "Prendre la photo", en: "Take the photo").to_owned(), |t| t.config.ui.shutter().to_owned());
             ui::shadowed_text(&painter, shutter_center + Vec2::new(0.0, 84.0 * scale), Align2::CENTER_CENTER, &label, ui::bold(18.0 * scale), Color32::WHITE);
             if ui::shutter(ui, shutter_center, 60.0 * scale, &pal) { self.begin_countdown(); }
             self.paint_filter_strip(ui, &painter, shutter_center, rect, scale, &pal);
         }
         if self.storage.settings.demo_mode {
             ui::shadowed_text(&painter, Pos2::new(rect.right() - 110.0 * scale, rect.top() + 61.0 * scale), Align2::RIGHT_CENTER,
-                "DÉMO", ui::bold(15.0 * scale), Color32::from_white_alpha(200));
+                tr!(fr: "DÉMO", en: "DEMO"), ui::bold(15.0 * scale), Color32::from_white_alpha(200));
         }
     }
 
@@ -964,9 +965,9 @@ impl Kiosk {
         let modes = self.guest_modes();
         if !modes.contains(&self.guest_mode) { self.guest_mode = GuestMode::Photo; }
         let labels: Vec<String> = modes.iter().map(|m| match m {
-            GuestMode::Photo => "Une photo".to_owned(),
-            GuestMode::Burst => format!("Rafale ×{count}"),
-            GuestMode::GuestBook => "Livre d’or".to_owned(),
+            GuestMode::Photo => tr!(fr: "Une photo", en: "Single photo").to_owned(),
+            GuestMode::Burst => tr!(fr: format!("Rafale ×{count}"), en: format!("Burst ×{count}")),
+            GuestMode::GuestBook => tr!(fr: "Livre d’or", en: "Guest book").to_owned(),
         }).collect();
         let font = ui::bold(19.0 * scale);
         let seg_h = 50.0 * scale;
@@ -1005,9 +1006,9 @@ impl Kiosk {
             }
         }
         let hint = match self.guest_mode {
-            GuestMode::Burst => format!("{count} photos à la suite : changez de pose entre chaque !"),
-            GuestMode::GuestBook => format!("Laissez un message vidéo pour {}", self.recipient()),
-            GuestMode::Photo => "Placez-vous dans le cadre".to_owned(),
+            GuestMode::Burst => tr!(fr: format!("{count} photos à la suite : changez de pose entre chaque !"), en: format!("{count} photos in a row: change your pose each time!")),
+            GuestMode::GuestBook => tr!(fr: format!("Laissez un message vidéo pour {}", self.recipient()), en: format!("Leave a video message for {}", self.recipient())),
+            GuestMode::Photo => tr!(fr: "Placez-vous dans le cadre", en: "Step into the frame").to_owned(),
         };
         ui::shadowed_text(painter, Pos2::new(rect.center().x, outer.bottom() + 24.0 * scale), Align2::CENTER_CENTER,
             &hint, ui::bold(17.0 * scale), Color32::from_white_alpha(230));
@@ -1033,7 +1034,7 @@ impl Kiosk {
                 self.last_touch = Instant::now();
             }
         }
-        let label = if self.guest_portrait { "Portrait" } else { "Paysage" };
+        let label = if self.guest_portrait { tr!(fr: "Portrait", en: "Portrait") } else { tr!(fr: "Paysage", en: "Landscape") };
         ui::shadowed_text(painter, Pos2::new(outer.center().x, outer.bottom() + 20.0 * scale), Align2::CENTER_CENTER, label, ui::bold(15.0 * scale), Color32::from_white_alpha(230));
     }
 
@@ -1149,7 +1150,7 @@ impl Kiosk {
         } else {
             ui::icon(painter, center, radius * 0.6, Color32::WHITE, Icon::Camera);
         }
-        let message = match remaining { 4.. => "Préparez-vous…", 2..=3 => "Regardez l’objectif", 1 => "Souriez !", _ => "Clic !" };
+        let message = match remaining { 4.. => tr!(fr: "Préparez-vous…", en: "Get ready…"), 2..=3 => tr!(fr: "Regardez l’objectif", en: "Look at the lens"), 1 => tr!(fr: "Souriez !", en: "Smile!"), _ => tr!(fr: "Clic !", en: "Click!") };
         let font = ui::bold(28.0 * scale);
         let galley = painter.layout_no_wrap(message.to_owned(), font, Color32::WHITE);
         let pill = Rect::from_center_size(center + Vec2::new(0.0, radius + 56.0 * scale), galley.size() + Vec2::new(56.0, 24.0) * scale);
@@ -1172,8 +1173,8 @@ impl Kiosk {
         self.paint_backdrop(&painter, rect, &pal, 200);
         ui::icon(&painter, rect.center() - Vec2::new(0.0, 40.0), 72.0, pal.accent, Icon::Camera);
         let text = match self.burst.as_ref() {
-            Some(burst) => format!("Développement de vos photos… {} / {}", burst.shots.len(), burst.total),
-            None => "Développement de votre photo…".to_owned(),
+            Some(burst) => tr!(fr: format!("Développement de vos photos… {} / {}", burst.shots.len(), burst.total), en: format!("Developing your photos… {} of {}", burst.shots.len(), burst.total)),
+            None => tr!(fr: "Développement de votre photo…", en: "Developing your photo…").to_owned(),
         };
         painter.text(rect.center() + Vec2::new(0.0, 40.0), Align2::CENTER_CENTER, text, ui::display(34.0), pal.primary);
     }
@@ -1211,7 +1212,7 @@ impl Kiosk {
             painter.rect_filled(paper, CornerRadius::same(4), Color32::WHITE);
             painter.image(texture.id(), photo, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
             if total > 1 {
-                let text = format!("Photo {progress} / {total}");
+                let text = tr!(fr: format!("Photo {progress} / {total}"), en: format!("Photo {progress} of {total}"));
                 let galley = painter.layout_no_wrap(text, ui::bold(16.0 * scale), Color32::WHITE);
                 let pill = Rect::from_min_size(paper.left_top() + Vec2::new(16.0, 16.0) * scale, galley.size() + Vec2::new(28.0, 14.0) * scale);
                 painter.rect_filled(pill, CornerRadius::same(255), Color32::from_black_alpha(150));
@@ -1227,13 +1228,13 @@ impl Kiosk {
         let gap = 14.0 * scale;
         let max_copies = self.copies_available();
         let can_print = final_shot && printing && max_copies > 0;
-        let finish = labels.as_ref().map_or_else(|| "Terminer".to_owned(), |l| l.finish_label.clone());
-        let retake = labels.as_ref().map_or_else(|| "Reprendre".to_owned(), |l| l.retake_label.clone());
-        let print_label = labels.as_ref().map_or("Imprimer", |l| l.print()).to_owned();
+        let finish = labels.as_ref().map_or_else(|| tr!(fr: "Terminer", en: "Done").to_owned(), |l| l.finish().to_owned());
+        let retake = labels.as_ref().map_or_else(|| tr!(fr: "Reprendre", en: "Retake").to_owned(), |l| l.retake().to_owned());
+        let print_label = labels.as_ref().map_or(tr!(fr: "Imprimer", en: "Print"), |l| l.print()).to_owned();
         // (label, icon, kind, id), right to left.
         let mut actions: Vec<(String, Icon, Kind, &str)> = Vec::new();
         if !final_shot {
-            actions.push(("Photo suivante".to_owned(), Icon::Arrow, Kind::Primary, "next"));
+            actions.push((tr!(fr: "Photo suivante", en: "Next photo").to_owned(), Icon::Arrow, Kind::Primary, "next"));
         } else if can_print {
             actions.push((print_label, Icon::Print, Kind::Primary, "print"));
             actions.push((finish, Icon::Check, Kind::Glass, "finish"));
@@ -1251,16 +1252,17 @@ impl Kiosk {
             right -= w + gap;
         }
         let text_w = (right - bar.left() - 12.0 * scale).max(0.0);
-        let title = painter.layout_no_wrap(REVIEW_TITLES[self.review_title].to_owned(), ui::display(40.0 * scale), Color32::WHITE);
+        let (title_fr, title_en) = REVIEW_TITLES[self.review_title];
+        let title = painter.layout_no_wrap(tr!(fr: title_fr, en: title_en).to_owned(), ui::display(40.0 * scale), Color32::WHITE);
         let title_h = title.size().y;
-        let body = if !final_shot { "On enchaîne avec la suivante ?" }
-            else if can_print { "Imprimez-la ou terminez sans tirage." }
-            else { "Elle rejoint l’album de l’événement." };
+        let body = if !final_shot { tr!(fr: "On enchaîne avec la suivante ?", en: "Ready for the next one?") }
+            else if can_print { tr!(fr: "Imprimez-la ou terminez sans tirage.", en: "Print it, or finish without a print.") }
+            else { tr!(fr: "Elle rejoint l’album de l’événement.", en: "It goes into the event’s album.") };
         let timeout = Duration::from_secs(self.storage.settings.photo_timeout_seconds.into());
         let left = timeout.saturating_sub(self.last_touch.elapsed());
         // The auto-return hint appears only for the last seconds: before that the
         // screen is static and needs no repaint at all.
-        let body = if left <= REVIEW_HINT { format!("{body}\nRetour à l’appareil photo dans {} s", left.as_secs() + 1) } else { body.to_owned() };
+        let body = if left <= REVIEW_HINT { tr!(fr: format!("{body}\nRetour à l’appareil photo dans {} s", left.as_secs() + 1), en: format!("{body}\nBack to the camera in {} s", left.as_secs() + 1)) } else { body.to_owned() };
         let body = painter.layout(body, ui::body(18.0 * scale), Color32::from_white_alpha(210), text_w.max(1.0));
         let block = title_h + 6.0 * scale + body.size().y;
         let top = cy - block / 2.0;
@@ -1336,7 +1338,7 @@ impl Kiosk {
         painter.rect_filled(card, CornerRadius::same((28.0 * scale) as u8), pal.surface);
         let ink = ui::readable_on(pal.surface);
         let count = selected.clamp(1, max_copies.max(1));
-        let plural = |n: u8| if n == 1 { "1 exemplaire".to_owned() } else { format!("{n} exemplaires") };
+        let plural = |n: u8| if n == 1 { tr!(fr: "1 exemplaire", en: "1 copy").to_owned() } else { tr!(fr: format!("{n} exemplaires"), en: format!("{n} copies")) };
         let height = 72.0 * scale;
         let by = card.bottom() - 40.0 * scale - height;
 
@@ -1345,16 +1347,16 @@ impl Kiosk {
             painter.circle_filled(Pos2::new(card.center().x, card.top() + 84.0 * scale), 40.0 * scale, ui::alpha(pal.accent, 40));
             ui::icon(&painter, Pos2::new(card.center().x, card.top() + 84.0 * scale), 40.0 * scale, pal.accent, Icon::Print);
             painter.text(Pos2::new(card.center().x, card.top() + 146.0 * scale), Align2::CENTER_TOP,
-                format!("Imprimer {} ?", plural(count)), ui::display(34.0 * scale), ink);
+                tr!(fr: format!("Imprimer {} ?", plural(count)), en: format!("Print {}?", plural(count))), ui::display(34.0 * scale), ink);
             painter.text(Pos2::new(card.center().x, card.top() + 196.0 * scale), Align2::CENTER_TOP,
-                "On vérifie avant de lancer l’impression.", ui::body(19.0 * scale), ui::alpha(ink, 170));
-            let yes = format!("Oui, imprimer {count}");
+                tr!(fr: "On vérifie avant de lancer l’impression.", en: "A quick check before printing."), ui::body(19.0 * scale), ui::alpha(ink, 170));
+            let yes = tr!(fr: format!("Oui, imprimer {count}"), en: format!("Yes, print {count}"));
             let yes_w = ui::button_width(ui, &yes, height, true);
-            let back_w = ui::button_width(ui, "Modifier", height, false);
+            let back_w = ui::button_width(ui, tr!(fr: "Modifier", en: "Change"), height, false);
             let total = yes_w + back_w + 16.0 * scale;
             let back = Rect::from_min_size(Pos2::new(card.center().x - total / 2.0, by), Vec2::new(back_w, height));
             let ok = Rect::from_min_size(Pos2::new(back.right() + 16.0 * scale, by), Vec2::new(yes_w, height));
-            if ui::button(ui, back, "copies-back", "Modifier", None, Kind::Glass, pal) {
+            if ui::button(ui, back, "copies-back", tr!(fr: "Modifier", en: "Change"), None, Kind::Glass, pal) {
                 self.copies_confirm = false;
             } else if ui::button(ui, ok, "copies-yes", &yes, Some(Icon::Print), Kind::Primary, pal) {
                 self.copies_confirm = false;
@@ -1366,7 +1368,7 @@ impl Kiosk {
             return;
         }
 
-        painter.text(Pos2::new(card.center().x, card.top() + 40.0 * scale), Align2::CENTER_TOP, "Combien d’exemplaires ?", ui::display(34.0 * scale), ink);
+        painter.text(Pos2::new(card.center().x, card.top() + 40.0 * scale), Align2::CENTER_TOP, tr!(fr: "Combien d’exemplaires ?", en: "How many copies?"), ui::display(34.0 * scale), ink);
         // Stepper: [−]  N  [+]
         let row_y = card.top() + 170.0 * scale;
         let step = 84.0 * scale;
@@ -1389,16 +1391,16 @@ impl Kiosk {
         }
         painter.text(Pos2::new(card.center().x, row_y), Align2::CENTER_CENTER, count.to_string(), ui::display(80.0 * scale), ink);
         painter.text(Pos2::new(card.center().x, row_y + 62.0 * scale), Align2::CENTER_TOP,
-            format!("jusqu’à {max_copies}"), ui::body(16.0 * scale), ui::alpha(ink, 150));
+            tr!(fr: format!("jusqu’à {max_copies}"), en: format!("up to {max_copies}")), ui::body(16.0 * scale), ui::alpha(ink, 150));
         self.copies_picker = Some(next);
 
-        let confirm_label = format!("Imprimer {}", plural(next));
+        let confirm_label = tr!(fr: format!("Imprimer {}", plural(next)), en: format!("Print {}", plural(next)));
         let confirm_w = ui::button_width(ui, &confirm_label, height, true);
-        let cancel_w = ui::button_width(ui, "Annuler", height, false);
+        let cancel_w = ui::button_width(ui, tr!(fr: "Annuler", en: "Cancel"), height, false);
         let total = confirm_w + cancel_w + 16.0 * scale;
         let cancel = Rect::from_min_size(Pos2::new(card.center().x - total / 2.0, by), Vec2::new(cancel_w, height));
         let confirm = Rect::from_min_size(Pos2::new(cancel.right() + 16.0 * scale, by), Vec2::new(confirm_w, height));
-        let cancel_pressed = ui::button(ui, cancel, "copies-cancel", "Annuler", None, Kind::Glass, pal);
+        let cancel_pressed = ui::button(ui, cancel, "copies-cancel", tr!(fr: "Annuler", en: "Cancel"), None, Kind::Glass, pal);
         let confirm_pressed = ui::button(ui, confirm, "copies-confirm", &confirm_label, Some(Icon::Print), Kind::Primary, pal);
         let outside = backdrop.clicked() && backdrop.interact_pointer_pos().is_some_and(|p| !card.contains(p));
         if confirm_pressed {
@@ -1428,7 +1430,7 @@ impl Kiosk {
             }
         }
         if queued == 0 {
-            self.notice = Some(("Impression indisponible pour le moment : vos photos sont bien enregistrées.".into(), Instant::now()));
+            self.notice = Some((tr!(fr: "Impression indisponible pour le moment : vos photos sont bien enregistrées.", en: "Printing is unavailable right now: your photos are saved.").into(), Instant::now()));
         } else {
             self.show_thanks(u16::from(queued));
         }
@@ -1442,13 +1444,13 @@ impl Kiosk {
         self.paint_backdrop(&painter, rect, &pal, 215);
         let labels = theme::active().map(|t| t.config.ui.clone());
         let message_for = self.thanks_message.clone();
-        let title = if message_for.is_some() { "Merci pour votre message !" } else { labels.as_ref().map_or("Merci !", |l| l.thanks_title()) };
+        let title = if message_for.is_some() { tr!(fr: "Merci pour votre message !", en: "Thank you for your message!") } else { labels.as_ref().map_or(tr!(fr: "Merci !", en: "Thank you!"), |l| l.thanks_title()) };
         let printing_text = match self.thanks_copies {
             0 => String::new(),
-            1 => "Votre photo s’imprime, récupérez-la dans quelques secondes.".to_owned(),
-            n => format!("Vos {n} exemplaires s’impriment, récupérez-les dans quelques secondes."),
+            1 => tr!(fr: "Votre photo s’imprime, récupérez-la dans quelques secondes.", en: "Your photo is printing, pick it up in a few seconds.").to_owned(),
+            n => tr!(fr: format!("Vos {n} exemplaires s’impriment, récupérez-les dans quelques secondes."), en: format!("Your {n} copies are printing, pick them up in a few seconds.")),
         };
-        let message_text = message_for.as_ref().map(|name| format!("Il sera remis à {name}."));
+        let message_text = message_for.as_ref().map(|name| tr!(fr: format!("Il sera remis à {name}."), en: format!("It will be given to {name}.")));
         let subtitle = if let Some(text) = message_text.as_deref() { text }
             else if self.thanks_copies > 0 { printing_text.as_str() }
             else { labels.as_ref().map_or("", |l| l.thanks_subtitle()) };
@@ -1485,7 +1487,7 @@ impl Kiosk {
         let left = total.saturating_sub(elapsed);
         // Say clearly that the booth goes back to the camera by itself: a pill
         // with the seconds left, updated once a second (no continuous repaint).
-        let hint = format!("Prochaine photo dans {} s  ·  touchez l’écran pour y aller", left.as_secs() + 1);
+        let hint = tr!(fr: format!("Prochaine photo dans {} s  ·  touchez l’écran pour y aller", left.as_secs() + 1), en: format!("Next photo in {} s  ·  touch the screen to go now", left.as_secs() + 1));
         let hint = painter.layout_no_wrap(hint, ui::body(18.0 * scale), pal.fg);
         let icon = 22.0 * scale;
         let pill = Rect::from_center_size(Pos2::new(rect.center().x, rect.bottom() - 48.0 * scale), hint.size() + Vec2::new(36.0 * scale + icon + 10.0 * scale, 18.0 * scale));
@@ -1511,11 +1513,11 @@ impl Kiosk {
         painter.circle_filled(center, 60.0 * scale, ui::alpha(pal.primary, 30));
         ui::icon(&painter, center, 58.0 * scale, pal.primary, Icon::Camera);
         painter.line_segment([center + Vec2::new(-34.0, -34.0) * scale, center + Vec2::new(34.0, 34.0) * scale], Stroke::new(6.0 * scale, pal.accent));
-        let bottom = painter.text(center + Vec2::new(0.0, 92.0 * scale), Align2::CENTER_TOP, "L’appareil photo fait une pause",
+        let bottom = painter.text(center + Vec2::new(0.0, 92.0 * scale), Align2::CENTER_TOP, tr!(fr: "L’appareil photo fait une pause", en: "The camera is taking a break"),
             ui::display(46.0 * scale), pal.primary).bottom();
         painter.text(Pos2::new(rect.center().x, bottom + 14.0 * scale), Align2::CENTER_TOP,
-            "Un instant, on relance tout ça automatiquement.", ui::body(21.0 * scale), pal.fg);
-        let label = "Réessayer";
+            tr!(fr: "Un instant, on relance tout ça automatiquement.", en: "One moment, everything restarts by itself."), ui::body(21.0 * scale), pal.fg);
+        let label = tr!(fr: "Réessayer", en: "Try again");
         let height = 78.0 * scale;
         let width = ui::button_width(ui, label, height, true);
         let button = Rect::from_center_size(Pos2::new(rect.center().x, bottom + 110.0 * scale), Vec2::new(width, height));
@@ -1600,6 +1602,8 @@ impl eframe::App for Kiosk {
             self.live = None;
         }
         if let Some(pulse) = &self.pulse { pulse.stamp(); }
+        // A language change in maintenance applies at once (cached system language).
+        boothsoft::i18n::set(self.storage.settings.language.resolve());
         self.scheduled_restart();
         self.process_camera(ctx);
         self.process_photo_results(ctx);

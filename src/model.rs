@@ -56,6 +56,8 @@ pub struct Settings {
     /// `<data>/frames/landscape.png` and `portrait.png`, never a free path).
     pub frame_landscape_custom: bool,
     pub frame_portrait_custom: bool,
+    /// Interface language: the computer's (when available, else English) or a fixed one.
+    pub language: crate::i18n::LanguageSetting,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -84,7 +86,7 @@ pub struct EventSlot {
 
 impl Default for EventSlot {
     fn default() -> Self {
-        Self { name: "Nouvel événement".into(), date: chrono::Local::now().date_naive().format("%Y-%m-%d").to_string(),
+        Self { name: crate::tr!(fr: "Nouvel événement", en: "New event").into(), date: chrono::Local::now().date_naive().format("%Y-%m-%d").to_string(),
             start: "14:00".into(), end: "02:00".into() }
     }
 }
@@ -161,7 +163,8 @@ pub const DEFAULTS_VERSION: u8 = 3;
 impl Default for Settings {
     fn default() -> Self {
         Self {
-            event_name: "Votre événement".into(),
+            // New installation: named in the computer's language.
+            event_name: match crate::i18n::LanguageSetting::Auto.resolve() { crate::i18n::Lang::Fr => "Votre événement", crate::i18n::Lang::En => "Your event" }.into(),
             theme_id: "default".into(),
             frame_path: String::new(),
             camera_index: 0,
@@ -190,6 +193,7 @@ impl Default for Settings {
             print_orientation: PrintOrientation::Landscape,
             frame_landscape_custom: false,
             frame_portrait_custom: false,
+            language: crate::i18n::LanguageSetting::Auto,
         }
     }
 }
@@ -225,7 +229,7 @@ impl Settings {
         self.events.sort_by_key(|event| event.window().0);
         for event in &mut self.events {
             event.name = event.name.trim().chars().take(80).collect();
-            if event.name.is_empty() { event.name = "Événement".into(); }
+            if event.name.is_empty() { event.name = crate::tr!(fr: "Événement", en: "Event").into(); }
             // Canonical forms: anything unparsable becomes a valid default.
             event.date = event.date().format("%Y-%m-%d").to_string();
             event.start = event.start_time().format("%H:%M").to_string();

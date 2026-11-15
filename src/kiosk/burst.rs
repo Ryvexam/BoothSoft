@@ -10,9 +10,10 @@
 use super::*;
 
 /// One prompt per photo of a burst, so every shot gets a different pose.
-const POSES: [&str; 10] = [
-    "Souriez !", "Changez de pose !", "Grimace !", "Tous ensemble !", "Un câlin !",
-    "Regard de star !", "Fou rire !", "Bisou !", "Pose de super-héros !", "Encore une !",
+const POSES: [(&str, &str); 10] = [
+    ("Souriez !", "Smile!"), ("Changez de pose !", "New pose!"), ("Grimace !", "Pull a face!"), ("Tous ensemble !", "All together!"),
+    ("Un câlin !", "Hug!"), ("Regard de star !", "Star look!"), ("Fou rire !", "Big laugh!"), ("Bisou !", "Kiss!"),
+    ("Pose de super-héros !", "Superhero pose!"), ("Encore une !", "One more!"),
 ];
 
 impl Kiosk {
@@ -23,7 +24,10 @@ impl Kiosk {
         self.paint_print_guide(&painter, rect, scale, gpu);
         let waiting_next = self.burst.as_ref().is_some_and(|b| b.next_at.is_some());
         let current = if waiting_next { taken + 1 } else { taken }.min(total);
-        let pose = if current == total { "Dernière !" } else { POSES[usize::from(current - 1) % POSES.len()] };
+        let pose = if current == total { tr!(fr: "Dernière !", en: "Last one!") } else {
+            let (fr, en) = POSES[usize::from(current - 1) % POSES.len()];
+            tr!(fr: fr, en: en)
+        };
 
         let counter = format!("{current} / {total}");
         let galley = painter.layout_no_wrap(counter, ui::display(54.0 * scale), Color32::WHITE);
@@ -101,9 +105,9 @@ impl Kiosk {
 
         // Header.
         let margin = 48.0 * scale;
-        let title = if printing { "Choisissez vos photos" } else { "Vos photos" };
+        let title = if printing { tr!(fr: "Choisissez vos photos", en: "Pick your photos") } else { tr!(fr: "Vos photos", en: "Your photos") };
         painter.text(Pos2::new(rect.left() + margin, rect.top() + 34.0 * scale), Align2::LEFT_TOP, title, ui::display(38.0 * scale), Color32::WHITE);
-        let hint = if printing { "Faites défiler, puis choisissez le nombre de tirages de chaque photo." } else { "Faites défiler pour revoir la rafale." };
+        let hint = if printing { tr!(fr: "Faites défiler, puis choisissez le nombre de tirages de chaque photo.", en: "Swipe through, then choose how many prints of each photo.") } else { tr!(fr: "Faites défiler pour revoir la rafale.", en: "Swipe to see the burst again.") };
         painter.text(Pos2::new(rect.left() + margin, rect.top() + 86.0 * scale), Align2::LEFT_TOP, hint, ui::body(18.0 * scale), Color32::from_white_alpha(200));
 
         // Layout: big photo, copies stepper, filmstrip, action bar.
@@ -123,7 +127,7 @@ impl Kiosk {
             painter.rect_filled(paper, CornerRadius::same(4), Color32::WHITE);
             painter.image(big.id(), photo, Rect::from_min_max(Pos2::ZERO, Pos2::new(1.0, 1.0)), Color32::WHITE);
             if current_copies > 0 {
-                let label = if current_copies == 1 { "1 tirage".to_owned() } else { format!("{current_copies} tirages") };
+                let label = if current_copies == 1 { tr!(fr: "1 tirage", en: "1 print").to_owned() } else { tr!(fr: format!("{current_copies} tirages"), en: format!("{current_copies} prints")) };
                 let galley = painter.layout_no_wrap(label, ui::bold(17.0 * scale), pal.on_accent);
                 let chip = Rect::from_min_size(paper.left_top() + Vec2::new(14.0, 14.0) * scale, galley.size() + Vec2::new(46.0, 14.0) * scale);
                 painter.rect_filled(chip, CornerRadius::same(255), pal.accent);
@@ -165,7 +169,7 @@ impl Kiosk {
             let can_add = current_copies < max_each && total_copies < budget;
             if round_step(ui, &painter, minus, "pick-minus", false, current_copies > 0, &pal) { delta = -1; }
             if round_step(ui, &painter, plus, "pick-plus", true, can_add, &pal) { delta = 1; }
-            let label = match current_copies { 0 => "Pas imprimée".to_owned(), 1 => "1 tirage".to_owned(), n => format!("{n} tirages") };
+            let label = match current_copies { 0 => tr!(fr: "Pas imprimée", en: "Not printed").to_owned(), 1 => tr!(fr: "1 tirage", en: "1 print").to_owned(), n => tr!(fr: format!("{n} tirages"), en: format!("{n} prints")) };
             // The count hops when it changes.
             let hop = ui::appear(ui.ctx(), ("pick-copies", selected, current_copies), 0.18);
             painter.text(Pos2::new(rect.center().x, cy - (1.0 - hop) * 10.0 * scale), Align2::CENTER_CENTER, label, ui::bold(26.0 * scale), Color32::WHITE);
@@ -206,8 +210,8 @@ impl Kiosk {
         let height = 72.0 * scale;
         let cy = rect.bottom() - bar_h / 2.0;
         let labels = theme::active().map(|t| t.config.ui.clone());
-        let finish = labels.as_ref().map_or_else(|| "Terminer".to_owned(), |l| l.finish_label.clone());
-        let print_label = match total_copies { 1 => "Imprimer 1 tirage".to_owned(), n => format!("Imprimer {n} tirages") };
+        let finish = labels.as_ref().map_or_else(|| tr!(fr: "Terminer", en: "Done").to_owned(), |l| l.finish().to_owned());
+        let print_label = match total_copies { 1 => tr!(fr: "Imprimer 1 tirage", en: "Print 1 copy").to_owned(), n => tr!(fr: format!("Imprimer {n} tirages"), en: format!("Print {n} copies")) };
         let mut right = rect.right() - margin;
         let mut print_pressed = false;
         if printing && total_copies > 0 {
@@ -222,9 +226,9 @@ impl Kiosk {
         let finish_pressed = ui::button(ui, r, "pick-finish", &finish, Some(Icon::Check), kind, &pal);
         let timeout = Duration::from_secs(self.storage.settings.photo_timeout_seconds.into());
         let left = timeout.saturating_sub(self.last_touch.elapsed());
-        let status = if left <= REVIEW_HINT { format!("Retour à l’appareil photo dans {} s", left.as_secs() + 1) }
-            else if printing { format!("{count} photos · {total_copies} tirage(s) choisi(s)") }
-            else { format!("{count} photos dans l’album de l’événement") };
+        let status = if left <= REVIEW_HINT { tr!(fr: format!("Retour à l’appareil photo dans {} s", left.as_secs() + 1), en: format!("Back to the camera in {} s", left.as_secs() + 1)) }
+            else if printing { tr!(fr: format!("{count} photos · {total_copies} tirage(s) choisi(s)"), en: format!("{count} photos · {total_copies} print(s) chosen")) }
+            else { tr!(fr: format!("{count} photos dans l’album de l’événement"), en: format!("{count} photos in the event’s album")) };
         painter.text(Pos2::new(rect.left() + margin, cy), Align2::LEFT_CENTER, status, ui::body(18.0 * scale), Color32::from_white_alpha(210));
 
         if confirm {
@@ -263,19 +267,19 @@ impl Kiosk {
         painter.circle_filled(icon_c, 38.0 * scale, ui::alpha(pal.accent, 40));
         ui::icon(&painter, icon_c, 38.0 * scale, pal.accent, Icon::Print);
         painter.text(Pos2::new(card.center().x, card.top() + 134.0 * scale), Align2::CENTER_TOP,
-            format!("Imprimer {total} tirages ?"), ui::display(34.0 * scale), ink);
+            tr!(fr: format!("Imprimer {total} tirages ?"), en: format!("Print {total} copies?")), ui::display(34.0 * scale), ink);
         painter.text(Pos2::new(card.center().x, card.top() + 182.0 * scale), Align2::CENTER_TOP,
-            "On vérifie avant de lancer l’impression.", ui::body(19.0 * scale), ui::alpha(ink, 170));
+            tr!(fr: "On vérifie avant de lancer l’impression.", en: "A quick check before printing."), ui::body(19.0 * scale), ui::alpha(ink, 170));
         let height = 72.0 * scale;
         let by = card.bottom() - 36.0 * scale - height;
-        let yes = format!("Oui, imprimer {total}");
+        let yes = tr!(fr: format!("Oui, imprimer {total}"), en: format!("Yes, print {total}"));
         let yes_w = ui::button_width(ui, &yes, height, true);
-        let back_w = ui::button_width(ui, "Modifier", height, false);
+        let back_w = ui::button_width(ui, tr!(fr: "Modifier", en: "Change"), height, false);
         let both = yes_w + back_w + 16.0 * scale;
         let back = Rect::from_min_size(Pos2::new(card.center().x - both / 2.0, by), Vec2::new(back_w, height));
         let ok = Rect::from_min_size(Pos2::new(back.right() + 16.0 * scale, by), Vec2::new(yes_w, height));
         let outside = backdrop.clicked() && backdrop.interact_pointer_pos().is_some_and(|p| !card.contains(p));
-        if ui::button(ui, back, "pick-back", "Modifier", None, Kind::Glass, pal) || outside {
+        if ui::button(ui, back, "pick-back", tr!(fr: "Modifier", en: "Change"), None, Kind::Glass, pal) || outside {
             if let Some(burst) = self.burst.as_mut() { burst.confirm = false; }
         } else if ui::button(ui, ok, "pick-yes", &yes, Some(Icon::Print), Kind::Primary, pal) {
             self.print_burst();
@@ -297,7 +301,7 @@ impl Kiosk {
         }
         if queued == 0 {
             if let Some(burst) = self.burst.as_mut() { burst.confirm = false; }
-            self.notice = Some(("Impression indisponible pour le moment : vos photos sont bien enregistrées.".into(), Instant::now()));
+            self.notice = Some((tr!(fr: "Impression indisponible pour le moment : vos photos sont bien enregistrées.", en: "Printing is unavailable right now: your photos are saved.").into(), Instant::now()));
         } else {
             self.show_thanks_burst(queued);
         }

@@ -27,11 +27,11 @@ impl PhotoFilter {
     /// Short guest-facing name.
     pub fn name(self) -> &'static str {
         match self {
-            Self::Original => "Naturel",
-            Self::Vivid => "Éclat",
-            Self::Soft => "Doux",
-            Self::BlackWhite => "N&B",
-            Self::Sepia => "Sépia",
+            Self::Original => crate::tr!(fr: "Naturel", en: "Natural"),
+            Self::Vivid => crate::tr!(fr: "Éclat", en: "Vivid"),
+            Self::Soft => crate::tr!(fr: "Doux", en: "Soft"),
+            Self::BlackWhite => crate::tr!(fr: "N&B", en: "B&W"),
+            Self::Sepia => crate::tr!(fr: "Sépia", en: "Sepia"),
             Self::Vintage => "Vintage",
         }
     }

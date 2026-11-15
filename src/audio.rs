@@ -31,7 +31,7 @@ pub fn synthetic() -> bool {
 /// Names of the audio inputs, for the maintenance list. Slow on some systems:
 /// call it from a worker thread.
 pub fn list_inputs() -> Vec<String> {
-    if synthetic() { return vec!["Micro simulé".into()]; }
+    if synthetic() { return vec![crate::tr!(fr: "Micro simulé", en: "Simulated microphone").into()]; }
     let Ok(devices) = cpal::default_host().input_devices() else { return Vec::new() };
     devices.filter_map(|d| d.name().ok()).collect()
 }
@@ -142,13 +142,13 @@ impl MicStream {
             let feed = Arc::clone(&shared);
             std::thread::Builder::new().name("bs-synthetic-mic".into()).spawn(move || synthetic_voice(&feed))
                 .map_err(|e| e.to_string())?;
-            return Ok(Self { shared, _stream: None, device: "Micro simulé".into() });
+            return Ok(Self { shared, _stream: None, device: crate::tr!(fr: "Micro simulé", en: "Simulated microphone").into() });
         }
         let host = cpal::default_host();
         let chosen = if device.is_empty() { None } else {
             host.input_devices().ok().and_then(|mut all| all.find(|d| d.name().is_ok_and(|n| n == device)))
         };
-        let input = chosen.or_else(|| host.default_input_device()).ok_or("Aucun micro trouvé")?;
+        let input = chosen.or_else(|| host.default_input_device()).ok_or(crate::tr!(fr: "Aucun micro trouvé", en: "No microphone found"))?;
         let name = input.name().unwrap_or_default();
         let config = input.default_input_config().map_err(|e| e.to_string())?;
         let mut converter = Converter::new(config.channels(), config.sample_rate().0);

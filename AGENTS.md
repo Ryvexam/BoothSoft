@@ -61,6 +61,9 @@ Le développement se fait sur macOS (Mac du propriétaire) et se vérifie sur Li
 
 ## 3. Règles non négociables
 
+0. **Tout texte visible passe par `tr!(fr: "…", en: "…")`** (`src/i18n.rs`). Jamais de
+   texte d'interface en dur dans une seule langue. Les lignes du journal restent en anglais.
+
 1. **Tout en Rust.** Pas de moteur web, pas de script embarqué, pas de service externe.
    Les seuls scripts hors Rust sont des outils de développement (`scripts/`).
 2. **0 % de CPU au repos.** Un écran statique ne demande jamais de redessin. Aucune

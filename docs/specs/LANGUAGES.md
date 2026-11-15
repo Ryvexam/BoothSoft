@@ -1,6 +1,19 @@
 # Spécification — Système de langues (chantier L1)
 
-Statut : **à développer**. Priorité P2. Lis d'abord `AGENTS.md`.
+Statut : **anglais et français faits (15/11/2026)** ; espagnol et chinois à faire. Lis d'abord `AGENTS.md`.
+
+> **Réalisé.** `src/i18n.rs` : `Lang { En, Fr }`, réglage `Settings::language`
+> (`auto` par défaut = langue de l'ordinateur si elle est connue, sinon anglais ;
+> ou `en` / `fr` fixés en maintenance, Caméra & écran › Langue, appliqué tout de suite).
+> Détection : `GetUserDefaultLocaleName` (Windows), `defaults read -g AppleLanguages`
+> puis `LANG` (macOS), `LANGUAGE` / `LC_ALL` / `LC_MESSAGES` / `LANG` (Linux) ;
+> `BOOTHSOFT_LANG=fr` force une langue (tests). Écart volontaire avec D1 : au lieu d'une
+> énumération `Msg`, chaque texte est écrit sur place avec la macro
+> `tr!(fr: "…", en: "…")` : même garantie (une langue oubliée ne compile pas), aucune
+> recherche à l'exécution, et le texte reste lisible dans le code. Ajouter une langue =
+> ajouter un argument à la macro (le compilateur liste chaque texte à traduire).
+> Thèmes : `[ui]` + `language`, `[ui.en]`, `[ui.fr]` (§ 5.1) ; Party fourni en deux langues.
+> Pas d'écran de choix au premier lancement : la langue de l'ordinateur suffit.
 
 ## 1. Objectif
 

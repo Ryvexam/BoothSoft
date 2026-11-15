@@ -284,7 +284,8 @@ mod tests {
         let second = storage.new_session().unwrap();
         assert_ne!(first.id, second.id);
         assert!(storage.session_dir(&first).join("session.json").is_file());
-        assert!(storage.session_dir(&first).starts_with(root.join("sessions").join("votre-evenement")));
+        let folder = crate::model::slug(&storage.settings.event_name);
+        assert!(storage.session_dir(&first).starts_with(root.join("sessions").join(folder)));
         assert!(storage.session_dir(&second).join("session.json").is_file());
         fs::remove_dir_all(root).unwrap();
     }

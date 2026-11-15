@@ -36,9 +36,9 @@ Sans cloud, sans abonnement, sans opérateur — sur un petit mini-PC.
 ---
 
 > [!NOTE]
-> L'interface est aujourd'hui en **français**. Un système de langues — anglais par
-> défaut, français, espagnol et chinois — est prévu dans la
-> [feuille de route](docs/specs/LANGUAGES.md).
+> L'interface parle **anglais** et **français**. Elle suit la langue de l'ordinateur
+> (anglais si l'ordinateur est dans une autre langue) et peut être fixée en maintenance.
+> L'espagnol et le chinois sont prévus ([spécification](docs/specs/LANGUAGES.md)).
 
 ## ✨ Pourquoi BoothSoft
 
@@ -225,7 +225,8 @@ BoothSoft est jeune (version 0.16). Avant de compter dessus pour un vrai événe
 - [ ] Éditeur de thèmes intégré et clavier tactile
 - [x] Tirages en portrait avec leur propre cadre
 - [x] Livre d'or vidéo (en option) : un message de 30 s avec le son pour les hôtes
-- [ ] Langues : anglais (par défaut), français, espagnol, chinois
+- [x] Langues : anglais (par défaut) et français, selon la langue de l'ordinateur
+- [ ] Autres langues : espagnol, chinois
 - [ ] Suivi automatique de la file d'impression (aujourd'hui un tirage envoyé reste « à vérifier » jusqu'à confirmation en maintenance)
 - [ ] Reflex et hybrides — dépend de kits de fabricants non redistribuables ; le code
       offrira un point d'extension pour l'ajouter chez soi

@@ -18,6 +18,8 @@ frame_portrait = "assets/frame-portrait.png"
 background = "assets/background.png"
 
 [ui]
+# Texts below are in French; [ui.en] gives the English ones.
+language = "fr"
 shutter_label = "Prendre la photo"
 retake_label = "Reprendre"
 finish_label = "Terminer"
@@ -28,3 +30,15 @@ welcome_title = "Que la fête\ncommence !"
 welcome_subtitle = "Grimaces, câlins, pas de danse : tout est permis."
 thanks_title = "Trop bien !"
 thanks_subtitle = "Votre photo arrive. Allez vite danser !"
+
+[ui.en]
+shutter_label = "Take the photo"
+retake_label = "Retake"
+finish_label = "Done"
+print_label = "Print"
+start_label = "Let's go!"
+welcome_eyebrow = "Photobooth"
+welcome_title = "Let the party\nbegin!"
+welcome_subtitle = "Silly faces, hugs, dance moves: anything goes."
+thanks_title = "Awesome!"
+thanks_subtitle = "Your photo is on its way. Go dance!"

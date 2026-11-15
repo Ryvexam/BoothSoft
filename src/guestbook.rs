@@ -191,7 +191,7 @@ fn write_message(video: &Path, frames: &Receiver<RecordFrame>, mic: Option<(MicT
         }
         if stop.load(Ordering::Relaxed) { break; }
     }
-    let Some(mut writer) = writer else { return RecordResult::Failed("Aucune image reçue de la caméra".into()) };
+    let Some(mut writer) = writer else { return RecordResult::Failed("No frame received from the camera".into()) };
     if let Some(tap) = mic.as_ref() {
         audio.clear();
         tap.0.drain_into(&mut audio);
@@ -300,10 +300,14 @@ fn play(avi: &mut AviFile, clock: Option<Arc<AtomicU64>>, out: &Mutex<Option<Rgb
 pub fn export(event_dir: &Path, target: &Path, progress: &dyn Fn(usize, usize)) -> std::io::Result<usize> {
     let messages = list(event_dir);
     let name = event_dir.file_name().map(|s| s.to_string_lossy().into_owned()).unwrap_or_else(|| "evenement".into());
-    let out = target.join(format!("{name}-livre-d-or"));
+    let out = target.join(crate::tr!(fr: format!("{name}-livre-d-or"), en: format!("{name}-guest-book")));
     fs::create_dir_all(&out)?;
-    fs::write(out.join("LISEZ-MOI.txt"), "Messages vidéo du livre d'or.\r\n\r\nOuvrez les fichiers .avi avec VLC (gratuit : https://www.videolan.org/) \
-        ou le lecteur vidéo de votre ordinateur.\r\nChaque fichier est un message, nommé avec la date et l'heure de l'enregistrement.\r\n")?;
+    let (file, text) = crate::tr!(
+        fr: ("LISEZ-MOI.txt", "Messages vidéo du livre d'or.\r\n\r\nOuvrez les fichiers .avi avec VLC (gratuit : https://www.videolan.org/) \
+            ou le lecteur vidéo de votre ordinateur.\r\nChaque fichier est un message, nommé avec la date et l'heure de l'enregistrement.\r\n"),
+        en: ("README.txt", "Guest book video messages.\r\n\r\nOpen the .avi files with VLC (free: https://www.videolan.org/) \
+            or your computer's video player.\r\nEach file is one message, named after the date and time it was recorded.\r\n"));
+    fs::write(out.join(file), text)?;
     for (i, message) in messages.iter().enumerate() {
         progress(i, messages.len());
         let file = message.video.file_name().unwrap_or_default();
@@ -353,7 +357,7 @@ mod tests {
         assert_eq!(event_folders(&root.join("sessions")), vec!["mariage".to_owned()]);
         let usb = root.join("usb");
         assert_eq!(export(&event, &usb, &|_, _| {}).unwrap(), 1);
-        assert!(usb.join("mariage-livre-d-or").join("LISEZ-MOI.txt").exists());
+        assert!(usb.join("mariage-livre-d-or").join("LISEZ-MOI.txt").exists() || usb.join("mariage-guest-book").join("README.txt").exists());
         listed[0].delete().unwrap();
         assert!(list(&event).is_empty() && !message.thumbnail().exists());
     }
