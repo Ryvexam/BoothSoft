@@ -10,6 +10,9 @@ use super::*;
 use boothsoft::model::{EventSlot, Settings};
 use eframe::egui::{Align, FontId, Layout, Margin, Sense, StrokeKind, UiBuilder};
 
+mod upload;
+pub use upload::UploadAdmin;
+
 /// What the operator was doing when unsaved changes stopped them
 /// (`docs/specs/MAINTENANCE_PATTERNS.md` § 2).
 #[derive(Clone, Copy, PartialEq, Eq, Debug)]
@@ -634,6 +637,7 @@ impl Kiosk {
         self.admin_authorized = false;
         self.admin_saved = None;
         self.gb_admin = GuestBookAdmin::default();
+        self.upload = UploadAdmin::default();
         self.event_sizes = None;
         self.pin_entry.clear();
         self.new_pin.clear();
@@ -777,10 +781,11 @@ impl Kiosk {
         self.render_delete_event_dialog(ui.ctx(), full, &pal);
         self.render_message_dialogs(ui.ctx(), full, &pal);
         self.render_disk_delete_dialog(ui.ctx(), full, &pal);
+        self.render_upload_dialog(ui.ctx(), full, &pal);
         // Microphone test and playback live only on their own page.
         if self.admin_section != AdminSection::GuestBook { self.gb_admin.test_mic = None; }
         if self.admin_section != AdminSection::GuestBook { self.gb_admin.playing = None; }
-        if self.gb_admin.test_mic.is_some() || self.gb_admin.playing.is_some() || self.gb_admin.export.is_some() || self.event_export.is_some() {
+        if self.gb_admin.test_mic.is_some() || self.gb_admin.playing.is_some() || self.gb_admin.export.is_some() || self.event_export.is_some() || self.upload_busy() {
             ui.ctx().request_repaint_after(Duration::from_millis(66));
         }
     }
@@ -1462,6 +1467,7 @@ impl Kiosk {
     fn page_data(&mut self, ui: &mut egui::Ui, pal: &Pal) {
         self.disk_warning(ui, pal);
         self.card_events_on_disk(ui, pal);
+        self.card_gallery_upload(ui, pal);
         let photos: usize = self.storage.sessions.iter().map(|session| session.shots.len()).sum();
         let messages = boothsoft::guestbook::list(&self.storage.root.join("sessions").join(self.current_event().folder));
         let message_seconds: f64 = messages.iter().map(|m| m.info.seconds).sum();
@@ -1947,6 +1953,8 @@ impl Kiosk {
         let free = self.disk_free.map(human).unwrap_or_else(|| "?".into());
         let mut delete = None;
         let mut export = None;
+        let mut send = None;
+        let can_send = self.upload_ready() && self.upload.job_idle();
         // Finished export: result in the status line, list refreshed.
         if let Some(result) = self.event_export.as_ref().and_then(|job| job.3.try_recv().ok()) {
             self.status = match result {
@@ -1967,6 +1975,7 @@ impl Kiosk {
                 row(ui, pal, folder, &detail, |ui| {
                     if !is_current && exporting.is_none() && btn(ui, pal, tr!(fr: "Supprimer", en: "Delete"), Btn::Danger).clicked() { delete = Some(folder.clone()); }
                     if btn_enabled(ui, pal, exporting.is_none(), tr!(fr: "Exporter (ZIP)", en: "Export (ZIP)"), Btn::Secondary) { export = Some(folder.clone()); }
+                    if can_send && btn(ui, pal, tr!(fr: "Envoyer en ligne", en: "Send online"), Btn::Secondary).clicked() { send = Some(folder.clone()); }
                 });
                 if exporting.as_deref() == Some(folder.as_str()) {
                     if let Some((_, done, total, _)) = self.event_export.as_ref() {
@@ -1979,6 +1988,7 @@ impl Kiosk {
         });
         if delete.is_some() { self.pending_disk_delete = delete; }
         if let Some(folder) = export { self.start_event_export(ui.ctx(), folder); }
+        if let Some(folder) = send { self.start_gallery_upload(ui.ctx(), folder); }
     }
 
     /// Asks where to save, then zips the event on a worker thread (progress on the page).

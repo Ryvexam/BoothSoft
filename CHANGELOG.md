@@ -1,6 +1,7 @@
 ## [Unreleased]
 
 ### Added
+- Online photo sending (optional, off by default; `docs/specs/GALLERY_UPLOAD.md`): Data & export › "Send online" sends an event's ZIP to the operator's own website, which publishes a private gallery. Website address and booth key in maintenance (key kept in its own file, never shown again), connection test, owner's 6-digit two-factor code on a touch keypad, booking check before sending, pieces retried after network cuts, gallery link and QR code at the end. Only network exit of BoothSoft, always started by hand. New dependencies: `ureq` (rustls), `sha2`, `qrcode`.
 - Camera self-repair: a camera that stops answering (cable, battery, power) is reconnected in the background (every 2 s, then 5 s); the pause screen has no button any more and goes back to the live view by itself.
 - Disk guard: warning under 5 GB free, no new session under 500 MB (calm message for guests); stored events listed with their size in Data & export, deletable with confirmation.
 - Event export as one ZIP (Data & export › Stored events): photos, prints, guest book videos and manifests, written in the background with a progress bar; photos and videos stored without recompression, the ZIP only appears once complete.

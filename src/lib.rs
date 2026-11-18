@@ -18,6 +18,7 @@ pub mod devices;
 pub mod disk;
 pub mod durable_file;
 pub mod effects;
+pub mod gallery_upload;
 pub mod guestbook;
 pub mod i18n;
 pub mod image_io;

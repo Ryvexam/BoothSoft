@@ -23,6 +23,12 @@ fast_image_resize = { version = "5", default-features = false }
 ab_glyph = "0.2"
 mozjpeg = "0.10"
 cpal = "0.15"
+# Sending an event's photos to the operator's website (docs/specs/GALLERY_UPLOAD.md):
+# the only network exit, started by hand. Blocking client on a worker thread, rustls
+# with bundled root certificates (no system certificate store needed on the booth PC).
+ureq = { version = "2.12", default-features = false, features = ["tls", "json"] }
+sha2 = "0.10"
+qrcode = { version = "0.14", default-features = false }
 
 # `input-native` selects Media Foundation / AVFoundation / V4L2 at compile time.
 [target.'cfg(any(target_os = "windows", target_os = "macos", target_os = "linux"))'.dependencies]

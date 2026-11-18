@@ -29,7 +29,10 @@ Sont concernés en particulier :
 
 ## Ce que le projet garantit déjà
 
-- Aucune connexion réseau, aucun port ouvert, aucune télémétrie.
+- Aucun port ouvert, aucune télémétrie. Une seule connexion réseau possible : l'envoi
+  d'un événement au site de l'exploitant, désactivé par défaut, déclenché à la main en
+  maintenance, en HTTPS, avec une clé de borne et un code à usage unique
+  (`docs/specs/GALLERY_UPLOAD.md`). La clé est stockée dans `BoothSoft/upload-key`.
 - Les thèmes sont des dossiers validés (noms, tailles, formats, pas de lien
   symbolique) : jamais un chemin libre ni du code exécutable.
 - Le code de la maintenance est stocké haché (bcrypt) ; 5 essais puis 60 s d'attente.

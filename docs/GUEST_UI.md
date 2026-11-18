@@ -122,6 +122,20 @@ Live view, synthetic 10 fps camera, per thread:
 | Camera decode | 2.5 % | 2.6 % |
 | llvmpipe rasteriser (GPU on real hardware) | 64.5 % | 42.4 % |
 
+### Maintenance: online photo sending (18/11/2026)
+
+Linux aarch64, Xvfb + llvmpipe, **debug build** (release figures will be lower), demo
+mode, against a local copy of the website (`docs/specs/GALLERY_UPLOAD.md`).
+
+| Step | CPU (one core) | RSS |
+| --- | --- | --- |
+| Data & export page open (2 s) | 11.8 % | 131.5 MB |
+| Sending dialog, ZIP prepared, keypad shown (3 s) | 13.3 % | 133.8 MB |
+| Sending + publishing + final screen with QR code (5 s) | 2.3 % | 134.9 MB |
+
+No repaint loop once the gallery is shown (the dialog repaints at 15 fps only while a
+worker runs, like the event export).
+
 ## Without a GPU (software OpenGL)
 
 Every displayed frame is then rendered by the CPU, and the cost is dominated by

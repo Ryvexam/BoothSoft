@@ -47,6 +47,9 @@ pub struct Settings {
     pub guestbook_recipient: String,
     /// Input device name; empty = system default.
     pub guestbook_mic: String,
+    /// Operator's website receiving the event ZIP (`docs/specs/GALLERY_UPLOAD.md`).
+    /// Empty = sending off (default). The booth key lives in its own file, not here.
+    pub upload_url: String,
     /// Software gain ×1, ×2 or ×4 (Faible · Normale · Forte).
     pub guestbook_gain: u8,
     pub guestbook_playback_volume: u8,
@@ -188,6 +191,7 @@ impl Default for Settings {
             guestbook_max_seconds: 30,
             guestbook_recipient: String::new(),
             guestbook_mic: String::new(),
+            upload_url: String::new(),
             guestbook_gain: 2,
             guestbook_playback_volume: 80,
             print_orientation: PrintOrientation::Landscape,
@@ -223,6 +227,7 @@ impl Settings {
         self.guestbook_max_seconds = (self.guestbook_max_seconds.clamp(10, 30) / 5) * 5;
         self.guestbook_recipient = self.guestbook_recipient.trim().chars().take(80).collect();
         self.guestbook_mic = self.guestbook_mic.chars().take(200).collect();
+        self.upload_url = self.upload_url.trim().chars().take(200).collect();
         self.guestbook_gain = match self.guestbook_gain { 0 | 1 => 1, 2 | 3 => 2, _ => 4 };
         self.guestbook_playback_volume = self.guestbook_playback_volume.min(100);
         self.events.truncate(100);

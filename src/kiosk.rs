@@ -206,6 +206,7 @@ pub struct Kiosk {
     thanks_message: Option<String>,
     /// Guest book in maintenance: microphone test, messages, export.
     gb_admin: admin::GuestBookAdmin,
+    upload: admin::UploadAdmin,
     /// Start-with-the-computer state, read when the maintenance page opens.
     autostart: Option<bool>,
     admin_taps: (u8, Instant),
@@ -277,7 +278,7 @@ impl Kiosk {
             failed_pin_attempts: 0, pin_blocked_until: None,
             active_filter: PhotoFilter::Original, preview_filtered: None,
             frames: [None, None], frame_path_loaded: String::new(), guest_portrait: false,
-            art: None, flash_at: None, thanks_at: None, thanks_copies: 0, copies_picker: None, copies_confirm: false, print_seq: 0, system_printer: None, burst: None, pulse, started_at: Instant::now(), logged_status: String::new(), logged_screen: None, error_since: None, camera_lost: false, camera_kick: None, disk_free: None, event_sizes: None, pending_disk_delete: None, event_export: None, guest_mode: GuestMode::Photo, guestbook: None, thanks_message: None, gb_admin: admin::GuestBookAdmin::default(), autostart: None,
+            art: None, flash_at: None, thanks_at: None, thanks_copies: 0, copies_picker: None, copies_confirm: false, print_seq: 0, system_printer: None, burst: None, pulse, started_at: Instant::now(), logged_status: String::new(), logged_screen: None, error_since: None, camera_lost: false, camera_kick: None, disk_free: None, event_sizes: None, pending_disk_delete: None, event_export: None, guest_mode: GuestMode::Photo, guestbook: None, thanks_message: None, gb_admin: admin::GuestBookAdmin::default(), upload: admin::UploadAdmin::default(), autostart: None,
             admin_taps: (0, Instant::now()), notice: None, review_title: 0,
             live: None, live_checked: false, numeral: ui::BigNumeral::default(), renderer: String::new(),
         }

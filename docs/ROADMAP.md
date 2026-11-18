@@ -91,7 +91,7 @@ fiches DNP QW410 (300 dpi, 190 tirages 4×6 par heure, 2×6 sur papier 4×6 perf
 | Modes | Photo, GIF, boomerang, vidéo, 360 | Photo, rafale avec choix | Écart (fiche C1) |
 | Modèles d'impression | Éditeur de modèles, plusieurs photos par tirage, 4×6 et bandes 2×6 | Un cadre PNG par thème, 1 photo par tirage 10×15 | Choix assumé (fiche C2) |
 | Effets | Filtres, LUT, fond vert, stickers, lissage de peau | 6 filtres en direct | Suffisant pour démarrer |
-| Partage | E-mail, SMS, QR (y compris hors ligne), microsite | Aucun (choix assumé) | Hors périmètre (§ 7) |
+| Partage | E-mail, SMS, QR (y compris hors ligne), microsite | Galerie sur le site de l'exploitant, envoyée à la main après l'événement (QR en maintenance) | Fait, U1 (§ 7, `docs/specs/GALLERY_UPLOAD.md`) |
 | Impression | Toute imprimante, envoi automatique, paiement | Impression directe, quota par événement, confirmation manuelle | Écart (fiche B3) |
 | Écran d'accueil | Vidéo d'attraction en boucle, thèmes | Illustration fixe par thème | À notre avantage (0 % CPU) |
 | Événements | Création dans l'appli ou tableau de bord web, synchro cloud | Planning local avec horaires, dossier et quota par événement | Équivalent hors ligne ; manque thème par événement (fiche C3) |
@@ -829,10 +829,11 @@ fonctionnelle au thème Party.
 
 ## 7. Hors périmètre (décisions prises)
 
-- **Partage par QR code, e-mail, SMS, microsite** : écarté. Un QR code ne peut pas
-  contenir une photo (≈ 3 Ko au maximum), et la borne fonctionne sans connexion.
-  Si le sujet revient : point d'accès Wi-Fi local sur la borne (fiche à écrire), ou
-  lien mis en ligne plus tard quand la connexion revient.
+- **Partage par QR code, e-mail, SMS, microsite côté invités** : écarté. Un QR code ne
+  peut pas contenir une photo (≈ 3 Ko au maximum), et la borne fonctionne sans connexion.
+  Retenu à la place (18/11/2026, fait) : « lien mis en ligne plus tard » — l'exploitant
+  envoie à la main le ZIP de l'événement à son propre site, qui publie une galerie privée
+  (`docs/specs/GALLERY_UPLOAD.md`). Désactivé par défaut, jamais pendant l'événement.
 - **Fond vert, portraits par IA, lissage de peau, vidéo 360** : coût CPU / RAM
   incompatible avec le PC cible.
 - **Paiement à l'impression, synchronisation cloud, tableau de bord web** : hors du

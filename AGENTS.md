@@ -96,8 +96,10 @@ Le développement se fait sur macOS (Mac du propriétaire) et se vérifie sur Li
     3 dernières versions des réglages, thèmes et cadres sont conservées.
 11. **Décisions déjà prises, à ne pas rouvrir** : thème ≠ cadre ≠ événement (voir § 1) ;
     la photo remplit tout le tirage sous le cadre ; pas de partage par QR code / e-mail /
-    SMS, pas de bandes 2×6 ni de montage à plusieurs photos, pas de fond vert, pas de
-    vidéo d'attraction, pas de cloud. Voir `docs/ROADMAP.md` § 7.
+    SMS côté invités, pas de bandes 2×6 ni de montage à plusieurs photos, pas de fond vert,
+    pas de vidéo d'attraction, pas de cloud. Seule exception (décision du 18/11/2026) :
+    l'exploitant peut envoyer à la main, depuis la maintenance, le ZIP d'un événement à
+    **son propre site** (`docs/specs/GALLERY_UPLOAD.md`), désactivé par défaut. Voir `docs/ROADMAP.md` § 7.
 
 ## 4. Commandes
 
@@ -158,6 +160,7 @@ Accès maintenance dans un scénario : 5 clics rapides en (50, 50) sur le live.
 | `src/log.rs` | Journal sur disque (`BoothSoft/logs/`), fil `bs-log` |
 | `src/watchdog.rs`, `src/bin/boothsoft-guard.rs` | Gardien : relance après plantage ou gel, mode sans échec |
 | `src/devices.rs` | Recherche des caméras et imprimantes (fil dédié) |
+| `src/gallery_upload.rs`, `src/kiosk/admin/upload.rs` | Envoi du ZIP d'un événement au site de l'exploitant (seule sortie réseau, à la main) |
 | `src/bin/` | `boothsoft-bench`, `boothsoft-doctor`, `boothsoft-theme-check` |
 | `themes/` | Seul thème livré : `default` (« Party »), avec un cadre paysage et un cadre portrait |
 | `scripts/theme-art/generate.py` | Génération des illustrations des thèmes livrés (outil de dev) |
@@ -197,6 +200,7 @@ Détail des fils, des écrans et des données : `docs/ARCHITECTURE.md`.
 | `docs/specs/THEME_EDITOR.md` | Éditeur du thème de l'entreprise | Chantier T1 |
 | `docs/specs/GUEST_BOOK.md` | Livre d'or vidéo (à débloquer) : test du micro, message vidéo avec le son, AVI MJPEG sans encodage | Chantier G1 |
 | `docs/specs/LANGUAGES.md` | Système de langues : anglais par défaut, français, espagnol, chinois | Chantier L1, et avant d'écrire un nouveau texte d'interface |
+| `docs/specs/GALLERY_UPLOAD.md` | Envoi des photos au site de l'exploitant : limites, sécurité, protocole HTTP | Avant de toucher au réseau ou à l'export |
 | `docs/specs/TOUCH_KEYBOARD.md` | Clavier tactile de la maintenance | Chantier K1 (prérequis de la saisie de texte sur la borne) |
 
 Ordre conseillé des chantiers de personnalisation : M1.1 → F1.1 → F1.2 → F1.3 → K1 →
