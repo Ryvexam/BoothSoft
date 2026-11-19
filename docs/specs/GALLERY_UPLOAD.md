@@ -19,6 +19,11 @@ protocole HTTP (ci-dessous) que le site de l'exploitant implémente.
 - **Seule sortie réseau** de BoothSoft ; aucune télémétrie, aucun port ouvert.
 - HTTPS obligatoire (HTTP accepté seulement vers `localhost` / `127.0.0.1`, pour les essais).
 - Tout le travail (ZIP, sha256, HTTP) sur le fil `bs-upload`, jamais sur le fil d'interface.
+- Adresse sans partie utilisateur (`@`), sans `?` ni `#` ; les redirections ne sont **jamais
+  suivies** (le site qui redirige est signalé avec l'adresse à régler à la place) : la clé et
+  le secret de l'envoi ne partent que vers l'adresse réglée.
+- Avant le ZIP, la place libre est vérifiée : taille de l'événement + 500 Mo de marge
+  (la même que la garde du disque), sinon message clair et rien n'est écrit.
 
 ## Confiance : deux preuves
 

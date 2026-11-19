@@ -50,7 +50,9 @@ pub fn normalize_address(raw: &str) -> Result<String, String> {
     let address = raw.trim().trim_end_matches('/').to_string();
     let local = ["http://localhost", "http://127.0.0.1"].iter().any(|p| address == *p || address.starts_with(&format!("{p}:")) || address.starts_with(&format!("{p}/")));
     let host = address.strip_prefix("https://").unwrap_or("");
-    if address.len() > 200 || address.chars().any(|c| c.is_whitespace() || c == '?' || c == '#') || (!local && (host.is_empty() || !host.contains('.'))) {
+    // No user part (`http://localhost:1@other.site` would send the key in clear to
+    // other.site), no query, no fragment.
+    if address.len() > 200 || address.chars().any(|c| c.is_whitespace() || matches!(c, '?' | '#' | '@' | '\\')) || (!local && (host.is_empty() || !host.contains('.'))) {
         return Err(crate::tr!(fr: "Adresse du site invalide : elle commence par https://", en: "Invalid website address: it starts with https://").into());
     }
     Ok(address)
@@ -172,11 +174,20 @@ fn agent() -> ureq::Agent {
         // A 32 MB piece on slow venue Wi-Fi.
         .timeout(Duration::from_secs(600))
         .user_agent(concat!("BoothSoft/", env!("CARGO_PKG_VERSION")))
+        // Never follow a redirect: the upload token must only reach the address set
+        // in maintenance (see `answer` for the message shown instead).
+        .redirects(0)
         .build()
 }
 
 fn answer<T: DeserializeOwned>(result: Result<ureq::Response, ureq::Error>) -> Result<T, Failure> {
     match result {
+        Ok(response) if (300..400).contains(&response.status()) => {
+            let target = response.header("Location").unwrap_or("?").chars().take(120).collect::<String>();
+            Err(Failure { code: response.status(), message: crate::tr!(
+                fr: format!("Le site redirige vers {target} : réglez directement cette adresse."),
+                en: format!("The website redirects to {target}: set that address instead.")) })
+        }
         Ok(response) => response.into_json::<T>().map_err(|error| Failure {
             code: 200,
             message: crate::tr!(fr: format!("Réponse du site illisible : {error}"), en: format!("Unreadable answer from the website: {error}")),
@@ -203,10 +214,21 @@ pub fn ping(server: &Server) -> Result<Ping, Failure> {
 /// `progress(done, total)` counts files, then megabytes.
 pub fn prepare(sessions: &Path, folder: &str, work_dir: &Path, progress: &dyn Fn(Phase, u64, u64)) -> io::Result<Prepared> {
     fs::create_dir_all(work_dir)?;
+    // The ZIP is a full copy of the event: check there is room for it and the
+    // booth's own safety margin, rather than filling the disk halfway through.
+    let need = crate::disk::dir_size(&sessions.join(folder));
+    if let Some(free) = crate::disk::free_bytes(work_dir) {
+        if free < need.saturating_add(crate::disk::FULL) {
+            return Err(io::Error::new(io::ErrorKind::StorageFull, crate::tr!(
+                fr: format!("Pas assez de place sur le disque : il faut {} libres, il reste {}.", crate::disk::human(need + crate::disk::FULL), crate::disk::human(free)),
+                en: format!("Not enough disk space: {} needed, {} free.", crate::disk::human(need + crate::disk::FULL), crate::disk::human(free)))));
+        }
+    }
     let zip = work_dir.join(format!("{folder}.zip"));
     crate::storage::export_event_zip(sessions, folder, &zip, &|done, total| progress(Phase::Zip, done as u64, total as u64))?;
     let size = fs::metadata(&zip)?.len();
-    let mut file = io::BufReader::with_capacity(1 << 20, fs::File::open(&zip)?);
+    // Read straight into one 1 MB buffer (a BufReader would copy twice).
+    let mut file = fs::File::open(&zip)?;
     let mut hasher = Sha256::new();
     let mut buffer = vec![0u8; 1 << 20];
     let mut read = 0u64;
@@ -323,7 +345,29 @@ mod tests {
         assert!(normalize_address("http://site.example").is_err());
         assert!(normalize_address("https://localhost").is_err());
         assert!(normalize_address("https://site.example/?x=1").is_err());
+        // A user part would hide the real host behind an accepted prefix.
+        assert!(normalize_address("http://localhost:1@other.example").is_err());
+        assert!(normalize_address("http://127.0.0.1@other.example").is_err());
+        assert!(normalize_address("https://user@site.example").is_err());
         assert!(normalize_address("").is_err());
+    }
+
+    #[test]
+    fn redirects_are_refused_not_followed() {
+        use std::io::Write;
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let port = listener.local_addr().unwrap().port();
+        let site = std::thread::spawn(move || {
+            let (mut stream, _) = listener.accept().unwrap();
+            let mut request = [0u8; 2048];
+            let _ = stream.read(&mut request);
+            stream.write_all(b"HTTP/1.1 302 Found\r\nLocation: https://other.example/api\r\nContent-Length: 0\r\nConnection: close\r\n\r\n").unwrap();
+        });
+        let server = Server::new(&format!("http://127.0.0.1:{port}"), "bsk_0123456789abcdefghij").unwrap();
+        let failure = ping(&server).unwrap_err();
+        assert_eq!(failure.code, 302);
+        assert!(failure.message.contains("https://other.example/api"), "{}", failure.message);
+        site.join().unwrap();
     }
 
     #[test]
